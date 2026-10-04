@@ -2,6 +2,31 @@
 
 A Windows desktop file conversion utility that runs in the system tray. Drag files and use keyboard shortcuts to convert or edit them without opening a main window. The application and executable are currently named **DesktopDrop**.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/images/document-conversion.png" alt="F8 document conversion menu with ODT selected" width="300" />
+      <br /><strong>Document conversion · F8</strong>
+    </td>
+    <td align="center" valign="middle">
+      <img src="docs/images/video-tools.png" alt="F9 menu with video compression, trimming, cropping, and other tools" width="300" />
+      <br /><strong>Video tools · F9</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/images/archive-packing.png" alt="Menu for packing files into ZIP, TAR, GZIP, or RAR archives" width="300" />
+      <br /><strong>Archive packing</strong>
+    </td>
+    <td align="center" valign="middle">
+      <img src="docs/images/conversion-progress.png" alt="Desktop progress card showing an active image conversion and elapsed time" width="340" />
+      <br /><strong>Conversion progress</strong>
+    </td>
+  </tr>
+</table>
+
 ## Usage
 
 1. Select files on the desktop or in File Explorer, then start dragging while holding the left mouse button.
