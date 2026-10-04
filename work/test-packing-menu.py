@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys,json,zipfile,hashlib
-root=Path(__file__).resolve().parent.parent;app=root/'outputs/DesktopDrop';sys.path.insert(0,str(app/'backend'))
+root=Path(__file__).resolve().parent.parent;app=root/'outputs/ZestDrop';sys.path.insert(0,str(app/'backend'))
 import worker
 source=root/'work/packing-fixture.pptx'
 with zipfile.ZipFile(source,'w') as package:package.writestr('fixture-data.txt','the original package must remain intact')

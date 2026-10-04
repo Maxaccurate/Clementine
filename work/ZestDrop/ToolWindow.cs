@@ -16,7 +16,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using Path=System.IO.Path;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 internal sealed class ToolWindow:Window
 {

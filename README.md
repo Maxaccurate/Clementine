@@ -1,6 +1,8 @@
-# Clementine
+# ZestDrop
 
-A Windows desktop file conversion utility that runs in the system tray. Drag files and use keyboard shortcuts to convert or edit them without opening a main window. The application and executable are currently named **DesktopDrop**.
+**Drag. Drop. Convert.**
+
+A Windows desktop file conversion utility that runs in the system tray. Drag files and use keyboard shortcuts to convert or edit them without opening a main window.
 
 ## Screenshots
 
@@ -51,7 +53,7 @@ python work/prepare-runtime.py
 ./build.ps1
 
 # Start the tray application
-./outputs/DesktopDrop/DesktopDrop.exe
+./outputs/ZestDrop/ZestDrop.exe
 ```
 
 If 7-Zip is installed elsewhere:
@@ -60,16 +62,16 @@ If 7-Zip is installed elsewhere:
 python work/prepare-runtime.py --sevenzip-dir "D:/Tools/7-Zip"
 ```
 
-If you already have a complete application bundle, you can copy its `runtime` folder to `outputs/DesktopDrop/runtime` and run `build.ps1`. To build the C# application without checking the runtime, use `./build.ps1 -SkipRuntimeCheck`; this does not prepare the runtime dependencies.
+If you already have a complete application bundle, you can copy its `runtime` folder to `outputs/ZestDrop/runtime` and run `build.ps1`. To build the C# application without checking the runtime, use `./build.ps1 -SkipRuntimeCheck`; this does not prepare the runtime dependencies.
 
-Package a local build with `Compress-Archive -Path ./outputs/DesktopDrop -DestinationPath ./outputs/Clementine-windows-x64.zip`. Before packaging, quit the application and exclude runtime logs, debug files, and temporary conversion outputs.
+Package a local build with `Compress-Archive -Path ./outputs/ZestDrop -DestinationPath ./outputs/ZestDrop-windows-x64.zip`. Before packaging, quit the application and exclude runtime logs, debug files, and temporary conversion outputs.
 
 ## Project structure
 
 | Path | Contents |
 | --- | --- |
-| `work/DesktopDrop/` | C# WPF application, global shortcuts, drag menu, Office bridge, and progress indicators |
-| `work/DesktopDrop/backend/` | Python engines for images, media, documents, and archives |
+| `work/ZestDrop/` | C# WPF application, global shortcuts, drag menu, Office bridge, and progress indicators |
+| `work/ZestDrop/backend/` | Python engines for images, media, documents, and archives |
 | `work/F9Checks/` | Tool parameter validation checks |
 | `work/ProgressChecks/` | Progress reading and component lifecycle checks |
 | `work/test-*.py` | Backend and application dispatch checks using generated fixtures |
@@ -89,11 +91,11 @@ dotnet run --project work/ProgressChecks -- outputs/progress-ui-tests.json
 After preparing the runtime and building the application, run backend checks with the portable Python executable:
 
 ```powershell
-./outputs/DesktopDrop/runtime/python/python.exe work/test-full-backend.py
-./outputs/DesktopDrop/runtime/python/python.exe work/test-advanced-branches.py
-./outputs/DesktopDrop/runtime/python/python.exe work/test-app-cli.py
-./outputs/DesktopDrop/runtime/python/python.exe work/test-f9-refinements.py
-./outputs/DesktopDrop/runtime/python/python.exe work/test-progress.py
+./outputs/ZestDrop/runtime/python/python.exe work/test-full-backend.py
+./outputs/ZestDrop/runtime/python/python.exe work/test-advanced-branches.py
+./outputs/ZestDrop/runtime/python/python.exe work/test-app-cli.py
+./outputs/ZestDrop/runtime/python/python.exe work/test-f9-refinements.py
+./outputs/ZestDrop/runtime/python/python.exe work/test-progress.py
 ```
 
 Run the full backend checks first to generate shared test fixtures. Office checks require the corresponding desktop Office applications; run `test-office.py` followed by `test-office-extra.py`. See the [validation summary](docs/validation.md) (Chinese). These records do not establish coverage of every computer, DPI setting, or manual interaction.

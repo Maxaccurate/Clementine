@@ -79,7 +79,7 @@ def pack(folder,path,fmt):
     else: raise ValueError('不支持的压缩包输出')
 
 def convert(paths,fmt,params):
-    with tempfile.TemporaryDirectory(prefix='desktopdrop-archive-') as temp:
+    with tempfile.TemporaryDirectory(prefix='zestdrop-archive-') as temp:
         folder=Path(temp)
         if not params.get('_pack') and len(paths)==1 and Path(paths[0]).suffix.lower() in ('.zip','.tar','.gz','.tgz','.rar'): extract_to(paths[0],folder)
         else:

@@ -8,7 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 // Used by both the tool's preview overlay and the desktop task toast.
 internal sealed class ActivityIndicator:StackPanel

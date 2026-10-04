@@ -8,7 +8,7 @@ from docx import Document
 import pymupdf as fitz
 
 ROOT=Path(__file__).resolve().parent.parent
-APP=ROOT/'outputs/DesktopDrop';PY=APP/'runtime/python/python.exe';WORKER=APP/'backend/worker.py';FF=APP/'runtime/ffmpeg/ffmpeg.exe';FP=APP/'runtime/ffmpeg/ffprobe.exe';SEVEN=APP/'runtime/7zip/7z.exe'
+APP=ROOT/'outputs/ZestDrop';PY=APP/'runtime/python/python.exe';WORKER=APP/'backend/worker.py';FF=APP/'runtime/ffmpeg/ffmpeg.exe';FP=APP/'runtime/ffmpeg/ffprobe.exe';SEVEN=APP/'runtime/7zip/7z.exe'
 sys.path.insert(0,str(APP/'backend'))
 import archives
 DIR=ROOT/'work/full-fixtures';DIR.mkdir(parents=True,exist_ok=True)

@@ -12,7 +12,7 @@ def family(path):
     return 'presentation' if ext in PRESENTATIONS else 'word' if ext in WORDS else 'sheet'
 
 def native(path,fmt,target):
-    process([BASE/'DesktopDrop.exe','--office-export',Path(path).resolve(),fmt,Path(target).resolve()],timeout=300)
+    process([BASE/'ZestDrop.exe','--office-export',Path(path).resolve(),fmt,Path(target).resolve()],timeout=300)
 
 def data_rows(path,folder):
     ext=Path(path).suffix.lower()
@@ -61,7 +61,7 @@ def csv_workbook(path,folder):
 
 def convert(path,fmt,params):
     path=Path(path);kind=family(path)
-    with tempfile.TemporaryDirectory(prefix='desktopdrop-office-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='zestdrop-office-') as temporary:
         folder=Path(temporary)
         if fmt in ('png','jpg'):
             import pypdfium2 as pdfium
@@ -140,7 +140,7 @@ def inspect(path,folder):
 
 def selected_pdf(path,params):
     from pypdf import PdfReader,PdfWriter
-    with tempfile.TemporaryDirectory(prefix='desktopdrop-office-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='zestdrop-office-') as temporary:
         source=pdf_file(path,Path(temporary));reader=PdfReader(source);order=params.get('pageOrder','').strip();indices=[int(v.strip())-1 for v in order.split(',')] if order else list(range(len(reader.pages)));writer=PdfWriter()
         for index in indices:
             if index<0 or index>=len(reader.pages):raise ValueError('页码超出文档范围')
@@ -152,7 +152,7 @@ def selected_pdf(path,params):
 def merge(paths,params):
     from pypdf import PdfReader,PdfWriter
     writer=PdfWriter()
-    with tempfile.TemporaryDirectory(prefix='desktopdrop-office-merge-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='zestdrop-office-merge-') as temporary:
         for index,path in enumerate(paths):
             folder=Path(temporary)/str(index);folder.mkdir();pdf=pdf_file(path,folder);writer.append(PdfReader(pdf))
         with output_file(paths[0],'merged','.pdf') as state:

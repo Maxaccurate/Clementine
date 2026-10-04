@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 internal static class OfficeBridge
 {

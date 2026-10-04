@@ -3,7 +3,7 @@ import sys,json,hashlib,importlib.util
 from PIL import Image
 
 ROOT=Path(__file__).resolve().parent.parent
-BUILD=ROOT/'outputs/DesktopDrop'
+BUILD=ROOT/'outputs/ZestDrop'
 sys.path.insert(0,str(BUILD/'backend'))
 import worker,common
 DIR=ROOT/'work/progress-fixtures';DIR.mkdir(exist_ok=True)

@@ -72,7 +72,7 @@ def commit(temp,path,suffix,extension):
 
 @contextmanager
 def output_file(path,suffix,extension):
-    temp=Path(path).resolve().parent/('.desktopdrop-'+uuid.uuid4().hex+extension)
+    temp=Path(path).resolve().parent/('.zestdrop-'+uuid.uuid4().hex+extension)
     state={'temp':temp,'output':None}
     try:
         yield state
@@ -83,7 +83,7 @@ def output_file(path,suffix,extension):
 
 @contextmanager
 def output_folder(path,suffix,allow_empty=False):
-    temp=Path(tempfile.mkdtemp(prefix='.desktopdrop-',dir=Path(path).resolve().parent))
+    temp=Path(tempfile.mkdtemp(prefix='.zestdrop-',dir=Path(path).resolve().parent))
     state={'temp':temp,'output':None}
     try:
         yield state

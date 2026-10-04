@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Windows.Controls;
 using System.Windows.Data;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 public sealed class MetadataRow
 {

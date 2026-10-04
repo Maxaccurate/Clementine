@@ -4,7 +4,7 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Shell;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 internal static class UiTheme
 {
@@ -52,7 +52,7 @@ internal static class UiTheme
         minimize.Click+=(_,_)=>window.WindowState=WindowState.Minimized;
         var close=new Button{Content="关闭",FontSize=11,Padding=new Thickness(12,4,12,4),MinHeight=28,Background=Brushes.Transparent,BorderThickness=new Thickness(0)};
         close.Click+=(_,_)=>window.Close();WindowChrome.SetIsHitTestVisibleInChrome(actions,true);actions.Children.Add(minimize);actions.Children.Add(close);caption.Children.Add(actions);
-        caption.Children.Add(new TextBlock{Text="DesktopDrop  /  F9 工具",Foreground=Muted,FontSize=11,VerticalAlignment=VerticalAlignment.Center});root.Children.Add(caption);Grid.SetRow(content,1);root.Children.Add(content);return root;
+        caption.Children.Add(new TextBlock{Text="ZestDrop  /  F9 工具",Foreground=Muted,FontSize=11,VerticalAlignment=VerticalAlignment.Center});root.Children.Add(caption);Grid.SetRow(content,1);root.Children.Add(content);return root;
     }
     public static Border Card(UIElement content,Thickness padding)=>new(){Child=content,Background=Brushes.White,BorderBrush=new SolidColorBrush(Color.FromRgb(230,232,235)),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Padding=padding};
 }

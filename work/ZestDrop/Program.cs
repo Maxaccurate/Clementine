@@ -12,7 +12,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 internal static class Program
 {
@@ -52,7 +52,7 @@ internal static class Program
         if(args.Length==2&&args[0]=="--debug-indicator")
         {
             var testApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
-            var indicator=new TaskIndicatorWindow{Title="DesktopDrop 进度提示预览",ShowInTaskbar=true};
+            var indicator=new TaskIndicatorWindow{Title="ZestDrop 进度提示预览",ShowInTaskbar=true};
             testApp.Dispatcher.InvokeAsync(async()=>
             {
                 var progress=indicator.Begin(new ConversionJob(["示例照片.png"],"convert:jpg"));
@@ -76,7 +76,7 @@ internal static class Program
                 await Task.Delay(5000);indicator.Close();testApp.Shutdown();
             });testApp.Run();return 0;
         }
-        using var mutex = new Mutex(true, @"Local\DesktopDrop_20261003", out bool first);
+        using var mutex = new Mutex(true, @"Local\ZestDrop_20261003", out bool first);
         if (!first) return 0;
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         using var resident = new Resident(app);
@@ -133,23 +133,23 @@ internal sealed class Resident : IDisposable
     public Resident(System.Windows.Application app)
     {
         this.app = app;
-        messageWindow = new HwndSource(new HwndSourceParameters("DesktopDrop message receiver") { ParentWindow = new IntPtr(-3), WindowStyle = 0, Width = 0, Height = 0 });
+        messageWindow = new HwndSource(new HwndSourceParameters("ZestDrop message receiver") { ParentWindow = new IntPtr(-3), WindowStyle = 0, Width = 0, Height = 0 });
         messageWindow.AddHook(Hook);
         wheel = new DropWheel(BeginOperation);
         for (int i = 0; i < 2; i++) registered[i] = Native.RegisterHotKey(messageWindow.Handle, i + 1, 0x4000, (uint)(0x77 + i));
-        tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "DesktopDrop · 拖文件 + F8 转换 / F9 工具", Visible = true };
+        tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "ZestDrop · 拖文件 + F8 转换 / F9 工具", Visible = true };
         var items = new Forms.ContextMenuStrip();
         items.Items.Add("使用方式：拖文件时按 F8 / F9", null, (_, _) => Notify("桌面拖拽转换", "拖文件时按 F8，移到目标格式上松手。F9 打开对应工具。支持图片、视频、音频、文档和压缩包。"));
         items.Items.Add("取消当前任务",null,(_,_)=>{ try { activeCancellation?.Cancel(); } catch(InvalidOperationException) {} });
         items.Items.Add("最近输出所在文件夹", null, (_, _) => { if (lastOutput != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{lastOutput}\"") { UseShellExecute = true }); });
-        items.Items.Add("退出 DesktopDrop", null, (_, _) => app.Shutdown());
+        items.Items.Add("退出 ZestDrop", null, (_, _) => app.Shutdown());
         tray.ContextMenuStrip = items;
         tray.DoubleClick += (_, _) => Notify("桌面拖拽转换", "在桌面或资源管理器拖文件，按 F8 转换格式，F9 选择高级工具。");
         timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(25) };
         timer.Tick += Poll; timer.Start();
         _ = WorkQueue();
         Journal.Write("Started", new { noMainWindow = true, f8Registered = registered[0], f9Registered = registered[1] });
-        Notify("DesktopDrop 五类文件版已运行", "拖文件 + F8：转换；F9：工具。菜单根据文件类型变化。");
+        Notify("ZestDrop 五类文件版已运行", "拖文件 + F8：转换；F9：工具。菜单根据文件类型变化。");
     }
 
     private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

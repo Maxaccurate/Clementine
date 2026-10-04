@@ -2,7 +2,7 @@ from pathlib import Path
 import sys,json,subprocess,io,zipfile
 from PIL import Image,ImageOps
 import numpy as np,pillow_heif
-ROOT=Path(__file__).resolve().parent.parent;APP=ROOT/'outputs/DesktopDrop';FF=APP/'runtime/ffmpeg/ffmpeg.exe'
+ROOT=Path(__file__).resolve().parent.parent;APP=ROOT/'outputs/ZestDrop';FF=APP/'runtime/ffmpeg/ffmpeg.exe'
 sys.path.insert(0,str(APP/'backend'))
 import worker,media,images,archives
 DIR=ROOT/'work/full-fixtures';OUT=ROOT/'work/branch-results';OUT.mkdir(exist_ok=True);checks=[]

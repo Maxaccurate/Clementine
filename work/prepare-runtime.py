@@ -6,7 +6,7 @@ import argparse,gzip,os,re,shutil,subprocess,sys,urllib.request,urllib.parse,zip
 
 ROOT=Path(__file__).resolve().parent.parent
 CACHE=ROOT/'work/downloads'
-BASE=ROOT/'outputs/DesktopDrop/runtime'
+BASE=ROOT/'outputs/ZestDrop/runtime'
 
 def fetch(url,path):
     if path.exists() and path.stat().st_size:return

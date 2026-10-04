@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace DesktopDrop;
+namespace ZestDrop;
 
 internal sealed record Field(string Name,string Label,string Default="",string Kind="text",string[]? Choices=null);
 internal sealed record Operation(string Id,string Label,bool Tool=false,Field[]? Fields=null,bool Ordered=false);

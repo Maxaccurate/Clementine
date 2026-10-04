@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np,pillow_heif
 
 ROOT=Path(__file__).resolve().parent.parent
-APP=ROOT/'outputs/DesktopDrop'
+APP=ROOT/'outputs/ZestDrop'
 sys.path.insert(0,str(APP/'backend'))
 import worker,images,media
 from common import probe,fit_ratio

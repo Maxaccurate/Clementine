@@ -1,4 +1,4 @@
-# DesktopDrop 五类文件版
+# ZestDrop 五类文件版
 
 版本日期：2026-10-04。Windows x64 本地文件工具，常驻托盘，没有主页面。
 
@@ -62,7 +62,7 @@ PDF 转 Word 的版式可能变化；扫描页可作为图片写入 Word。PDF �
 
 ## 运行与源码
 
-完整解压后运行 DesktopDrop.exe，保留同目录的 backend、runtime 和所有 DLL。已随包提供 .NET 8 桌面运行时、Python、FFmpeg、7-Zip 和所需 Python 库，无须另装这些依赖。
+完整解压后运行 ZestDrop.exe，保留同目录的 backend、runtime 和所有 DLL。已随包提供 .NET 8 桌面运行时、Python、FFmpeg、7-Zip 和所需 Python 库，无须另装这些依赖。
 
 source/ 为当前 C# 源码和 Python 处理代码；validation/ 保存测试报告。logs/ 由程序在本地运行时生成，不包含在发布压缩包中。
 

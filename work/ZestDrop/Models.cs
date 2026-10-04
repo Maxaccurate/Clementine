@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-namespace DesktopDrop;
+namespace ZestDrop;
 internal sealed record ConversionJob(string[] Paths,string Action,Dictionary<string,string>? Parameters=null);
 internal sealed record FileResult(string Input,string? Output,string? Error);
 internal sealed record BatchResult(FileResult[] Files);

@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <AssemblyName>ZestDrop</AssemblyName>
+    <RootNamespace>ZestDrop</RootNamespace>
+    <Product>ZestDrop</Product>
+    <Title>ZestDrop</Title>
+    <Description>Drag. Drop. Convert. Desktop file tools for Windows.</Description>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>

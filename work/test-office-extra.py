@@ -2,7 +2,7 @@ from pathlib import Path
 import sys,json,zipfile,subprocess,csv
 from openpyxl import load_workbook
 from pypdf import PdfReader
-ROOT=Path(__file__).resolve().parent.parent;APP=ROOT/'outputs/DesktopDrop';DIR=ROOT/'work/office-fixtures';sys.path.insert(0,str(APP/'backend'))
+ROOT=Path(__file__).resolve().parent.parent;APP=ROOT/'outputs/ZestDrop';DIR=ROOT/'work/office-fixtures';sys.path.insert(0,str(APP/'backend'))
 import office
 checks=[]
 def check(name,fn):
@@ -30,7 +30,7 @@ def spreadsheet_values():
 check('Excel formula values and all sheets preserved',spreadsheet_values)
 for name in ['slides.pptx','document.docx','sheets.xlsx']:
     def menu(name=name):
-        target=DIR/(name+'.capabilities.json');subprocess.run([str(APP/'DesktopDrop.exe'),'--capabilities',str(DIR/name),str(target)],check=True,timeout=20)
+        target=DIR/(name+'.capabilities.json');subprocess.run([str(APP/'ZestDrop.exe'),'--capabilities',str(DIR/name),str(target)],check=True,timeout=20)
         data=json.loads(target.read_text());ids=[op['Id'] for op in data['Conversions']];require(data['Category']=='office' and 'convert:pdf' in ids and 'convert:png' in ids and not any(id.startswith('pack:') for id in ids))
     check('actual menu classification '+name,menu)
 report={'passed':sum(x['passed'] for x in checks),'failed':sum(not x['passed'] for x in checks),'checks':checks};(ROOT/'outputs/office-extra-tests.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8');print(json.dumps(report,ensure_ascii=False),flush=True);sys.exit(bool(report['failed']))
