@@ -119,6 +119,7 @@ internal sealed class Resident : IDisposable
     private readonly TaskIndicatorWindow taskIndicator=new();
     private readonly DispatcherTimer timer;
     private readonly Forms.NotifyIcon tray;
+    private readonly System.Drawing.Icon trayIcon;
     private readonly Channel<QueuedJob> queue = Channel.CreateBounded<QueuedJob>(new BoundedChannelOptions(16) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
     private readonly CancellationTokenSource stopping = new();
     private readonly bool[] registered = new bool[2];
@@ -137,7 +138,8 @@ internal sealed class Resident : IDisposable
         messageWindow.AddHook(Hook);
         wheel = new DropWheel(BeginOperation);
         for (int i = 0; i < 2; i++) registered[i] = Native.RegisterHotKey(messageWindow.Handle, i + 1, 0x4000, (uint)(0x77 + i));
-        tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "ZestDrop · 拖文件 + F8 转换 / F9 工具", Visible = true };
+        trayIcon=AppIcon.CreateTrayIcon();
+        tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "ZestDrop · 拖文件 + F8 转换 / F9 工具", Visible = true };
         var items = new Forms.ContextMenuStrip();
         items.Items.Add("使用方式：拖文件时按 F8 / F9", null, (_, _) => Notify("桌面拖拽转换", "拖文件时按 F8，移到目标格式上松手。F9 打开对应工具。支持图片、视频、音频、文档和压缩包。"));
         items.Items.Add("取消当前任务",null,(_,_)=>{ try { activeCancellation?.Cancel(); } catch(InvalidOperationException) {} });
@@ -286,6 +288,6 @@ internal sealed class Resident : IDisposable
         disposed = true; timer.Stop(); stopping.Cancel(); queue.Writer.TryComplete();
         try { if (activeWorker != null && !activeWorker.HasExited) activeWorker.Kill(true); } catch (InvalidOperationException) { }
         for (int i = 0; i < 2; i++) if (registered[i]) Native.UnregisterHotKey(messageWindow.Handle, i + 1);
-        tray.Dispose(); wheel.Close();taskIndicator.Close(); messageWindow.Dispose(); Journal.Write("Stopped");
+        tray.Dispose();trayIcon.Dispose(); wheel.Close();taskIndicator.Close(); messageWindow.Dispose(); Journal.Write("Stopped");
     }
 }

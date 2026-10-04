@@ -22,4 +22,5 @@ $taskSource = Join-Path $taskOutput 'source'
 New-Item -ItemType Directory -Force -Path $taskSource | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $taskRoot 'work/ZestDrop') -File | Where-Object {$_.Extension -in @('.cs', '.csproj', '.manifest')} | Copy-Item -Destination $taskSource -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'work/ZestDrop/backend') -Destination $taskSource -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $taskRoot 'work/ZestDrop/assets') -Destination $taskSource -Recurse -Force
 Write-Output "Built: $taskOutput/ZestDrop.exe"

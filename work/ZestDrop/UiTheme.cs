@@ -13,6 +13,7 @@ internal static class UiTheme
     public static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(213,84,24));
     public static void Apply(Window window)
     {
+        window.Icon=AppIcon.Window;
         window.Resources=(ResourceDictionary)XamlReader.Parse("""
         <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
           <Style TargetType="Button">

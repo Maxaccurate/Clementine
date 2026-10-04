@@ -27,7 +27,7 @@ internal sealed class DropWheel:Window
     private const double Center=190,Outer=176,Inner=57;
     public DropWheel(Action<string[],Operation> submit)
     {
-        this.submit=submit;Title="ZestDrop 浮动菜单";Width=Height=380;
+        this.submit=submit;Title="ZestDrop 浮动菜单";Icon=AppIcon.Window;Width=Height=380;
         WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;AllowsTransparency=true;
         Background=Brushes.Transparent;ShowInTaskbar=false;ShowActivated=false;Topmost=true;AllowDrop=true;FontFamily=new FontFamily("Segoe UI");
         var disk=new Ellipse{Width=368,Height=368,Fill=new SolidColorBrush(Color.FromArgb(250,248,249,250)),Stroke=new SolidColorBrush(Color.FromRgb(226,228,232)),StrokeThickness=1};

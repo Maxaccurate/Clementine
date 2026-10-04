@@ -1,4 +1,8 @@
 using ZestDrop;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -18,6 +22,14 @@ internal static class Checks
             Check("invalid/partial progress ignored: "+content,()=>{File.WriteAllText(file,content);Require(ProgressReader.Read(file)==null);});
         Check("actual batch counts and Unicode filename read correctly",()=>{File.WriteAllText(file,JsonSerializer.Serialize(new JobProgress("processing",2,5,"照片.png")));var p=ProgressReader.Read(file);Require(p?.Processed==2&&p.Total==5&&p.Current=="照片.png");});
         File.Delete(file);
+        Check("embedded window icon loads at high resolution and stays frozen",()=>
+        {
+            var icon=AppIcon.Window;Require(icon.IsFrozen&&icon.Width==256&&icon.Height==256&&ReferenceEquals(icon,AppIcon.Window));
+        });
+        Check("tray icon can be used after its resource stream is closed",()=>
+        {
+            using var icon=AppIcon.CreateTrayIcon();using var bitmap=icon.ToBitmap();Require(icon.Width>=16&&icon.Width==icon.Height&&bitmap.Width==icon.Width);
+        });
         Check("worker progress is delivered through the actual runtime monitor",()=>
         {
             string progressFile=file+".progress";File.WriteAllText(progressFile,JsonSerializer.Serialize(new JobProgress("processing",2,5,"照片 3.png")));

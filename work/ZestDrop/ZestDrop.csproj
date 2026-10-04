@@ -15,7 +15,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets/zestdrop.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
+  </ItemGroup>
 </Project>

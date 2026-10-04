@@ -1,5 +1,7 @@
 # ZestDrop
 
+<img src="work/ZestDrop/assets/zestdrop.png" alt="ZestDrop icon" width="112" />
+
 **Drag. Drop. Convert.**
 
 A Windows desktop file conversion utility that runs in the system tray. Drag files and use keyboard shortcuts to convert or edit them without opening a main window.

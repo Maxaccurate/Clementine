@@ -17,7 +17,7 @@ internal sealed class TaskIndicatorWindow:Window
     private ActivityIndicator.Session? session;
     public TaskIndicatorWindow()
     {
-        Title="ZestDrop 处理进度";Width=360;Height=142;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;
+        Title="ZestDrop 处理进度";Icon=AppIcon.Window;Width=360;Height=142;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;
         AllowsTransparency=true;Background=Brushes.Transparent;ShowInTaskbar=false;ShowActivated=false;Topmost=true;
         FontFamily=new FontFamily("Microsoft YaHei UI");FontSize=13;
         var card=UiTheme.Card(indicator,new Thickness(20,16,20,14));card.Margin=new Thickness(10);card.Effect=new DropShadowEffect{BlurRadius=14,ShadowDepth=2,Opacity=.12};Content=card;
