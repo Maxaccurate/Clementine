@@ -4,9 +4,9 @@
     <AssemblyName>ZestDrop</AssemblyName>
     <RootNamespace>ZestDrop</RootNamespace>
     <Product>ZestDrop</Product>
-    <Version>0.1.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <Version>0.1.1</Version>
+    <AssemblyVersion>0.1.1.0</AssemblyVersion>
+    <FileVersion>0.1.1.0</FileVersion>
     <Title>ZestDrop</Title>
     <Description>Drag. Drop. Convert. Desktop file tools for Windows.</Description>
     <TargetFramework>net8.0-windows</TargetFramework>
