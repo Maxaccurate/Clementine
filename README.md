@@ -4,6 +4,12 @@
 
 A Windows desktop file conversion utility that runs in the system tray. Drag files and use keyboard shortcuts to convert or edit them without opening a main window.
 
+## Download
+
+Download the [v0.1.0 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v0.1.0/ZestDrop-v0.1.0-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
+
+See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v0.1.0) for requirements and known limitations.
+
 ## Screenshots
 
 <table>
