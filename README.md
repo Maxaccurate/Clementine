@@ -1,59 +1,59 @@
 # Clementine
 
-Windows 桌面文件转换工具。常驻托盘，通过拖拽文件与快捷键完成操作，没有主页面。当前应用及可执行文件名称为 **DesktopDrop**。
+A Windows desktop file conversion utility that runs in the system tray. Drag files and use keyboard shortcuts to convert or edit them without opening a main window. The application and executable are currently named **DesktopDrop**.
 
-## 使用
+## Usage
 
-1. 在桌面或资源管理器选中文件，按住鼠标左键开始拖动。
-2. 短按 **F8**，移到浮动菜单中的目标格式上松手。
-3. 短按 **F9**，移到对应工具上松手；需要参数时会打开工具窗口。
+1. Select files on the desktop or in File Explorer, then start dragging while holding the left mouse button.
+2. Press **F8** while dragging, move onto the desired format in the floating menu, and release the mouse button.
+3. Press **F9** while dragging to choose a tool instead. Tools that need settings open a dedicated tool window.
 
-新文件保存到原目录，同名自动编号，保留原文件。Esc 关闭浮动菜单；托盘右键可取消任务、打开最近输出位置或退出。
+Outputs are saved alongside the originals. Existing files are preserved, and duplicate output names receive a numeric suffix. Press **Esc** to dismiss the floating menu. Right-click the tray icon to cancel the current task, open the latest output location, or quit.
 
-支持图片、视频、音频、文档、压缩包五类文件。包括图片编辑、背景、裁剪和马赛克，视频裁剪/变速/拼接/截图，音频响度/声道/蜂鸣，PDF 页面管理，以及 Office 文档导出。图片和视频裁剪支持自定义比例。处理期间显示阶段、已用时间和真实批量计数。
+Supported categories include images, video, audio, documents, and archives. Tools cover image adjustments, backgrounds, cropping and pixelation; video trimming, speed changes, joining and frame capture; audio loudness, channels and beep redaction; PDF page management; and Office document export. Image and video cropping support custom aspect ratios. Progress indicators show the current stage, elapsed time, and actual processed counts for batch jobs.
 
-完整范围和限制见 [使用说明](docs/usage.md)。Office 原生排版导出需要安装相应的 Microsoft PowerPoint、Word 或 Excel。
+See the [usage guide](docs/usage.md) (Chinese) for the full feature list and limitations. Office exports that preserve native layout require the corresponding desktop version of Microsoft PowerPoint, Word, or Excel.
 
-## 从源码构建
+## Build from source
 
-需要 Windows x64、.NET 8 SDK。准备运行依赖还需要带 pip 的 Python 3.13，以及安装在常规位置的 64 位 7-Zip（也可通过参数提供目录）。
+Requires Windows x64 and the .NET 8 SDK. Preparing the portable runtime also requires Python 3.13 with pip and a 64-bit 7-Zip installation in its default location, or a directory supplied explicitly.
 
 ```powershell
-# 下载便携 Python / FFmpeg，安装锁定版本的 Python 包，并复制 7-Zip
+# Download portable Python and FFmpeg, install pinned packages, and copy 7-Zip
 python work/prepare-runtime.py
 
-# 构建自包含的 Windows 程序，并复制 Python 后端
+# Build the self-contained Windows application and copy the Python backend
 ./build.ps1
 
-# 启动常驻程序
+# Start the tray application
 ./outputs/DesktopDrop/DesktopDrop.exe
 ```
 
-若 7-Zip 安装在其他位置：
+If 7-Zip is installed elsewhere:
 
 ```powershell
 python work/prepare-runtime.py --sevenzip-dir "D:/Tools/7-Zip"
 ```
 
-已有完整运行包时，也可把其中的 `runtime` 文件夹复制到 `outputs/DesktopDrop/runtime`，然后执行 `build.ps1`。单独编译 C# 使用 `./build.ps1 -SkipRuntimeCheck`；该模式不会准备运行依赖。
+If you already have a complete application bundle, you can copy its `runtime` folder to `outputs/DesktopDrop/runtime` and run `build.ps1`. To build the C# application without checking the runtime, use `./build.ps1 -SkipRuntimeCheck`; this does not prepare the runtime dependencies.
 
-可用 `Compress-Archive -Path ./outputs/DesktopDrop -DestinationPath ./outputs/Clementine-windows-x64.zip` 打包本机构建结果。请在打包前退出应用，并排除运行日志、调试文件和临时转换结果。
+Package a local build with `Compress-Archive -Path ./outputs/DesktopDrop -DestinationPath ./outputs/Clementine-windows-x64.zip`. Before packaging, quit the application and exclude runtime logs, debug files, and temporary conversion outputs.
 
-## 项目结构
+## Project structure
 
-| 路径 | 内容 |
+| Path | Contents |
 | --- | --- |
-| `work/DesktopDrop/` | C# WPF 应用、快捷键、拖拽菜单、Office 桥接和进度提示 |
-| `work/DesktopDrop/backend/` | Python 图片、音视频、文档与压缩包处理引擎 |
-| `work/F9Checks/` | 工具参数校验检查 |
-| `work/ProgressChecks/` | 进度读取及组件生命周期检查 |
-| `work/test-*.py` | 使用生成文件进行的后端和程序分发检查 |
-| `docs/validation/` | 本地验证记录；路径已匿名化 |
-| `outputs/` | 构建产物、运行时及生成报告，Git 忽略 |
+| `work/DesktopDrop/` | C# WPF application, global shortcuts, drag menu, Office bridge, and progress indicators |
+| `work/DesktopDrop/backend/` | Python engines for images, media, documents, and archives |
+| `work/F9Checks/` | Tool parameter validation checks |
+| `work/ProgressChecks/` | Progress reading and component lifecycle checks |
+| `work/test-*.py` | Backend and application dispatch checks using generated fixtures |
+| `docs/validation/` | Local validation records with anonymized paths |
+| `outputs/` | Build artifacts, runtimes, and generated reports; ignored by Git |
 
-## 验证
+## Validation
 
-不依赖 Office 或便携运行时的 C# 检查：
+C# checks that do not require Office or the portable runtime:
 
 ```powershell
 New-Item -ItemType Directory -Force outputs | Out-Null
@@ -61,7 +61,7 @@ dotnet run --project work/F9Checks -- outputs/f9-parameter-tests.json
 dotnet run --project work/ProgressChecks -- outputs/progress-ui-tests.json
 ```
 
-准备运行时并构建后，可使用便携 Python 执行后端检查：
+After preparing the runtime and building the application, run backend checks with the portable Python executable:
 
 ```powershell
 ./outputs/DesktopDrop/runtime/python/python.exe work/test-full-backend.py
@@ -71,8 +71,8 @@ dotnet run --project work/ProgressChecks -- outputs/progress-ui-tests.json
 ./outputs/DesktopDrop/runtime/python/python.exe work/test-progress.py
 ```
 
-先运行完整后端检查以生成通用测试输入。Office 检查需要相应桌面 Office 应用，依次执行 `test-office.py`、`test-office-extra.py`。验证摘要见 [验证记录](docs/validation.md)；这些记录不是所有电脑、DPI 和人工交互都已验证的承诺。
+Run the full backend checks first to generate shared test fixtures. Office checks require the corresponding desktop Office applications; run `test-office.py` followed by `test-office-extra.py`. See the [validation summary](docs/validation.md) (Chinese). These records do not establish coverage of every computer, DPI setting, or manual interaction.
 
-## 许可证与依赖
+## License and dependencies
 
-项目源码沿用仓库现有的 [MIT License](LICENSE)。Python、.NET、FFmpeg、7-Zip 和其他第三方库使用各自许可证，见 [依赖记录](docs/dependencies.json)。MIT 许可证不替代第三方组件的许可证；运行依赖、二进制包、用户文件和运行日志不提交到 Git。
+Project source uses the repository's existing [MIT License](LICENSE). Python, .NET, FFmpeg, 7-Zip, and other third-party libraries retain their own licenses; see the [dependency record](docs/dependencies.json). The MIT License does not replace third-party licenses. Runtime dependencies, binary bundles, user files, and runtime logs are excluded from Git.
