@@ -16,6 +16,21 @@ internal static class Checks
         var checks=new List<object>();int failed=0;
         void Check(string name,Action action){try{action();checks.Add(new{test=name,passed=true});}catch(Exception ex){failed++;checks.Add(new{test=name,passed=false,error=ex.Message});}}
         void Require(bool value){if(!value)throw new Exception("Unexpected progress result");}
+        DragShortcutTracker Drag(){var t=new DragShortcutTracker(4,4);t.Update(true,false,false,false,100,100,true);return t;}
+        Check("Shift typing without a mouse drag does not trigger",()=>{var t=new DragShortcutTracker(4,4);Require(t.Update(false,true,false,false,100,100,true)==DragMenuRequest.None);});
+        Check("Shift clicking or small pointer movement does not trigger",()=>{var t=Drag();Require(t.Update(true,true,false,false,102,102,true)==DragMenuRequest.None);});
+        Check("drag plus Shift requests conversion",()=>{var t=Drag();Require(t.Update(true,true,false,false,110,100,true)==DragMenuRequest.Convert);});
+        Check("drag plus Ctrl Shift requests tools",()=>{var t=Drag();Require(t.Update(true,true,true,false,110,100,true)==DragMenuRequest.Tools);});
+        Check("Ctrl then Shift works",()=>{var t=Drag();Require(t.Update(true,false,true,false,110,100,true)==DragMenuRequest.None);Require(t.Update(true,true,true,false,110,100,true)==DragMenuRequest.Tools);});
+        Check("Shift then Ctrl switches immediately to tools",()=>{var t=Drag();Require(t.Update(true,true,false,false,110,100,true)==DragMenuRequest.Convert);Require(t.Update(true,true,true,false,110,100,true)==DragMenuRequest.Tools);});
+        Check("keys held before dragging trigger once movement starts",()=>{var t=new DragShortcutTracker(4,4);Require(t.Update(true,true,true,false,100,100,true)==DragMenuRequest.None);Require(t.Update(true,true,true,false,110,100,true)==DragMenuRequest.Tools);});
+        Check("holding a shortcut does not reopen the menu",()=>{var t=Drag();t.Update(true,true,false,false,110,100,true);Require(t.Update(true,true,false,false,130,100,true)==DragMenuRequest.None);});
+        Check("releasing Ctrl or both keys does not change an open tools menu",()=>{var t=Drag();t.Update(true,true,true,false,110,100,true);Require(t.Update(true,true,false,false,120,100,true)==DragMenuRequest.None);Require(t.Update(true,false,false,false,120,100,true)==DragMenuRequest.None);});
+        Check("a new Shift press can switch back to conversion",()=>{var t=Drag();t.Update(true,true,true,false,110,100,true);t.Update(true,false,false,false,120,100,true);Require(t.Update(true,true,false,false,120,100,true)==DragMenuRequest.Convert);});
+        Check("Escape suppresses shortcuts for the rest of the drag",()=>{var t=Drag();t.Update(true,true,false,false,110,100,true);t.Cancel();Require(t.Update(true,true,true,false,120,100,true)==DragMenuRequest.None);});
+        Check("a new drag works after Escape",()=>{var t=Drag();t.Cancel();t.Update(false,false,false,false,110,100,true);t.Update(true,false,false,false,100,100,true);Require(t.Update(true,true,false,false,110,100,true)==DragMenuRequest.Convert);});
+        Check("text selection outside Explorer does not trigger",()=>{var t=new DragShortcutTracker(4,4);t.Update(true,false,false,false,100,100,false);Require(t.Update(true,true,false,false,120,100,true)==DragMenuRequest.None);});
+        Check("Ctrl alone or Alt shortcuts do not trigger",()=>{var t=Drag();Require(t.Update(true,false,true,false,120,100,true)==DragMenuRequest.None);Require(t.Update(true,true,true,true,120,100,true)==DragMenuRequest.None);});
         var root=Path.GetDirectoryName(args[0])!;string file=Path.Combine(root,"progress-read-test.tmp");
         Check("missing progress does not crash UI",()=>Require(ProgressReader.Read(file)==null));
         foreach(string content in new[]{"{bad}","{\"Total\":0,\"Processed\":0}","{\"Total\":2,\"Processed\":3}","{\"Total\":2,\"Processed\":-1}"})

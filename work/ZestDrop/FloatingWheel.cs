@@ -21,9 +21,11 @@ internal sealed class DropWheel:Window
     private readonly List<FrameworkElement> labels=[];
     private List<Operation> operations=[];
     private string[] paths=[];
-    private bool entered,eligible,tools;
+    private bool entered,eligible,tools,allowedCopy;
     private int highlighted=-1;
     public long Instance { get; private set; }
+    public bool ToolsMode=>tools;
+    public bool HasFileDrag=>entered&&paths.Length>0;
     private const double Center=190,Outer=176,Inner=57;
     public DropWheel(Action<string[],Operation> submit)
     {
@@ -35,7 +37,7 @@ internal sealed class DropWheel:Window
         var center=new Border{Width=112,Height=104,CornerRadius=new CornerRadius(50),Background=Brushes.White};
         var text=new StackPanel{VerticalAlignment=VerticalAlignment.Center};
         count.Text="拖入文件";count.TextAlignment=TextAlignment.Center;count.FontSize=15;count.FontWeight=FontWeights.SemiBold;
-        hint.Text="F8 格式 · F9 工具";hint.TextAlignment=TextAlignment.Center;hint.FontSize=10;hint.Foreground=Brushes.DimGray;hint.Margin=new Thickness(0,6,0,0);
+        hint.Text="Shift 格式 · Ctrl+Shift 工具";hint.TextAlignment=TextAlignment.Center;hint.FontSize=10;hint.Foreground=Brushes.DimGray;hint.Margin=new Thickness(0,6,0,0);
         text.Children.Add(count);text.Children.Add(hint);center.Child=text;
         Canvas.SetLeft(center,Center-56);Canvas.SetTop(center,Center-52);Canvas.SetZIndex(center,10);canvas.Children.Add(center);Content=canvas;
         PreviewDragEnter+=Enter;PreviewDragOver+=Over;
@@ -44,7 +46,7 @@ internal sealed class DropWheel:Window
     }
     public void OpenAt(Native.POINT point,bool tools)
     {
-        Instance++;entered=false;eligible=false;paths=[];this.tools=tools;
+        Instance++;entered=false;eligible=allowedCopy=false;paths=[];this.tools=tools;
         count.Text="拖入文件";hint.Text=tools?"工具随类型显示":"格式随类型显示";Render([]);
         if(!IsVisible)Show();
         var hwnd=new WindowInteropHelper(this).Handle;var area=Forms.Screen.FromPoint(new System.Drawing.Point(point.X,point.Y)).WorkingArea;
@@ -57,15 +59,25 @@ internal sealed class DropWheel:Window
     {
         if(!IsVisible)return;Hide();paths=[];eligible=false;entered=false;Journal.Write("WheelDismissed",new{reason});
     }
+    public void ChangeMode(bool nextTools)
+    {
+        tools=nextTools;
+        if(!entered){hint.Text=tools?"工具随类型显示":"格式随类型显示";return;}
+        Populate();
+    }
+    private void Populate()
+    {
+        operations=paths.Length<=200?Catalog.Options(paths,tools):[];eligible=allowedCopy&&operations.Count>0;
+        bool packing=Catalog.PackingOnly(paths);
+        count.Text=eligible?(packing&&!tools?"仅支持打包":$"{paths.Length} 个文件"):"无可用操作";
+        hint.Text=packing&&!tools?"暂不支持格式转换":eligible?"选操作后松手":"Esc 取消";Render(operations);
+    }
     private void Enter(object sender,DragEventArgs e)
     {
         if(!entered)
         {
             entered=true;try{paths=e.Data.GetDataPresent(DataFormats.FileDrop)?e.Data.GetData(DataFormats.FileDrop)as string[]??[]:[];}catch{paths=[];}
-            operations=paths.Length<=200?Catalog.Options(paths,tools):[];eligible=(e.AllowedEffects&DragDropEffects.Copy)!=0&&operations.Count>0;
-            bool packing=Catalog.PackingOnly(paths);
-            count.Text=packing?"仅支持打包":eligible?$"{paths.Length} 个文件":"无可用操作";
-            hint.Text=packing&&!tools?"暂不支持格式转换":eligible?"选操作后松手":"Esc 取消";Render(operations);
+            allowedCopy=(e.AllowedEffects&DragDropEffects.Copy)!=0;Populate();
             Journal.Write("DragEntered",new{count=paths.Length,eligible,category=paths.Length>0?Catalog.Category(paths[0]):"none",allowed=e.AllowedEffects.ToString(),operations=operations.Select(x=>x.Id)});
         }
         e.Effects=eligible?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;

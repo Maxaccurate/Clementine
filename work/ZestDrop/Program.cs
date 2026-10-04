@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
+using System.Text;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -93,6 +94,14 @@ internal static class Native
     [DllImport("user32.dll", SetLastError = true)] public static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
     [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr hwnd, int id);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd,StringBuilder name,int capacity);
+    public static bool ShellFileWindow()
+    {
+        var name=new StringBuilder(256);GetClassName(GetForegroundWindow(),name,name.Capacity);
+        return name.ToString() is "CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW";
+    }
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     public static bool Down(int key) => (GetAsyncKeyState(key) & 0x8000) != 0;
 }
@@ -123,6 +132,7 @@ internal sealed class Resident : IDisposable
     private readonly Channel<QueuedJob> queue = Channel.CreateBounded<QueuedJob>(new BoundedChannelOptions(16) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
     private readonly CancellationTokenSource stopping = new();
     private readonly bool[] registered = new bool[2];
+    private readonly DragShortcutTracker dragShortcuts=new(Native.GetSystemMetrics(68),Native.GetSystemMetrics(69));
     private bool f8, f9, escape, mouse, releasePending;
     private DateTime activated = DateTime.MinValue;
     private string? lastOutput;
@@ -139,19 +149,19 @@ internal sealed class Resident : IDisposable
         wheel = new DropWheel(BeginOperation);
         for (int i = 0; i < 2; i++) registered[i] = Native.RegisterHotKey(messageWindow.Handle, i + 1, 0x4000, (uint)(0x77 + i));
         trayIcon=AppIcon.CreateTrayIcon();
-        tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "ZestDrop · 拖文件 + F8 转换 / F9 工具", Visible = true };
+        tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "ZestDrop · 拖文件 + Shift 转换 / Ctrl+Shift 工具", Visible = true };
         var items = new Forms.ContextMenuStrip();
-        items.Items.Add("使用方式：拖文件时按 F8 / F9", null, (_, _) => Notify("桌面拖拽转换", "拖文件时按 F8，移到目标格式上松手。F9 打开对应工具。支持图片、视频、音频、文档和压缩包。"));
+        items.Items.Add("使用方式：拖文件 + Shift / Ctrl+Shift", null, (_, _) => Notify("桌面拖拽转换", "拖文件时按 Shift，移到目标格式上松手；Ctrl+Shift 打开工具。菜单出现后可松开键盘，只保持鼠标按住。F8/F9 仍可使用。"));
         items.Items.Add("取消当前任务",null,(_,_)=>{ try { activeCancellation?.Cancel(); } catch(InvalidOperationException) {} });
         items.Items.Add("最近输出所在文件夹", null, (_, _) => { if (lastOutput != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{lastOutput}\"") { UseShellExecute = true }); });
         items.Items.Add("退出 ZestDrop", null, (_, _) => app.Shutdown());
         tray.ContextMenuStrip = items;
-        tray.DoubleClick += (_, _) => Notify("桌面拖拽转换", "在桌面或资源管理器拖文件，按 F8 转换格式，F9 选择高级工具。");
+        tray.DoubleClick += (_, _) => Notify("桌面拖拽转换", "在桌面或资源管理器拖文件，按 Shift 转换格式，Ctrl+Shift 选择工具。F8/F9 是备用入口。");
         timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(25) };
         timer.Tick += Poll; timer.Start();
         _ = WorkQueue();
-        Journal.Write("Started", new { noMainWindow = true, f8Registered = registered[0], f9Registered = registered[1] });
-        Notify("ZestDrop 五类文件版已运行", "拖文件 + F8：转换；F9：工具。菜单根据文件类型变化。");
+        Journal.Write("Started", new { noMainWindow = true, f8Registered = registered[0], f9Registered = registered[1],modifierShortcuts=true });
+        Notify("ZestDrop 已运行", "拖文件 + Shift：转换；Ctrl+Shift：工具。F8/F9 仍可使用。");
     }
 
     private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -163,18 +173,32 @@ internal sealed class Resident : IDisposable
         return IntPtr.Zero;
     }
 
-    private void Activate(bool tools, string reason)
+    private void Activate(bool tools, string reason,bool modifier=false)
     {
-        if ((DateTime.UtcNow - activated).TotalMilliseconds < 200) return;
+        if(wheel.IsVisible)
+        {
+            if(wheel.ToolsMode==tools)return;
+            activated=DateTime.UtcNow;releasePending=false;wheel.ChangeMode(tools);Journal.Write("WheelModeChanged",new{reason,tools});return;
+        }
+        if (!modifier&&(DateTime.UtcNow - activated).TotalMilliseconds < 200) return;
         activated = DateTime.UtcNow; releasePending = false;
         Native.GetCursorPos(out var point);
         wheel.OpenAt(point, tools);
         Journal.Write("WheelOpened", new { reason, tools, mouseDown = Native.Down(1), point.X, point.Y });
+        if(modifier)
+        {
+            long instance=wheel.Instance;var confirmation=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(250)};
+            confirmation.Tick+=(_,_)=>{confirmation.Stop();if(wheel.IsVisible&&wheel.Instance==instance&&!wheel.HasFileDrag)wheel.Dismiss("NotFileDrag");};confirmation.Start();
+        }
     }
 
     private void Poll(object? sender, EventArgs e)
     {
         bool nextF8 = Native.Down(0x77), nextF9 = Native.Down(0x78), nextEscape = Native.Down(0x1B), nextMouse = Native.Down(1);
+        Native.GetCursorPos(out var cursor);
+        var request=dragShortcuts.Update(nextMouse,Native.Down(0x10),Native.Down(0x11),Native.Down(0x12),cursor.X,cursor.Y,nextMouse&&!mouse&&Native.ShellFileWindow());
+        if(nextEscape&&!escape)dragShortcuts.Cancel();
+        else if(request!=DragMenuRequest.None)Activate(request==DragMenuRequest.Tools,"DragModifier",true);
         if (nextF8 && !f8) Activate(false, "KeyStateEdge");
         if (nextF9 && !f9) Activate(true, "KeyStateEdge");
         if (nextEscape && !escape && wheel.IsVisible) wheel.Dismiss("Escape");

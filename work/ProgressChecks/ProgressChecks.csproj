@@ -7,6 +7,7 @@
     <Compile Include="../ZestDrop/ActivityIndicator.cs" Link="ActivityIndicator.cs"/>
     <Compile Include="../ZestDrop/UiTheme.cs" Link="UiTheme.cs"/>
     <Compile Include="../ZestDrop/AppIcon.cs" Link="AppIcon.cs"/>
+    <Compile Include="../ZestDrop/DragShortcutTracker.cs" Link="DragShortcutTracker.cs"/>
     <EmbeddedResource Include="../ZestDrop/assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
   </ItemGroup>
 </Project>

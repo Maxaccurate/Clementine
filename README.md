@@ -18,11 +18,11 @@ See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/rel
   <tr>
     <td align="center" valign="middle">
       <img src="docs/images/document-conversion.png" alt="F8 document conversion menu with ODT selected" width="300" />
-      <br /><strong>Document conversion · F8</strong>
+      <br /><strong>Document conversion · Shift / F8</strong>
     </td>
     <td align="center" valign="middle">
       <img src="docs/images/video-tools.png" alt="F9 menu with video compression, trimming, cropping, and other tools" width="300" />
-      <br /><strong>Video tools · F9</strong>
+      <br /><strong>Video tools · Ctrl+Shift / F9</strong>
     </td>
   </tr>
   <tr>
@@ -40,8 +40,10 @@ See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/rel
 ## Usage
 
 1. Select files on the desktop or in File Explorer, then start dragging while holding the left mouse button.
-2. Press **F8** while dragging, move onto the desired format in the floating menu, and release the mouse button.
-3. Press **F9** while dragging to choose a tool instead. Tools that need settings open a dedicated tool window.
+2. Press **Shift** while dragging, move onto the desired format in the floating menu, and release the mouse button.
+3. Press **Ctrl+Shift** while dragging to choose a tool instead. Tools that need settings open a dedicated tool window.
+
+Once the menu appears, you can release the keyboard keys while continuing to hold the mouse button. Pressing Ctrl while Shift is held switches the conversion menu to tools. **F8** and **F9** remain available as alternative shortcuts. Modifier shortcuts activate for drags started on the desktop or in File Explorer.
 
 Outputs are saved alongside the originals. Existing files are preserved, and duplicate output names receive a numeric suffix. Press **Esc** to dismiss the floating menu. Right-click the tray icon to cancel the current task, open the latest output location, or quit.
 
