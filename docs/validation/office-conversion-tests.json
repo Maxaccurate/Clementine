@@ -1,0 +1,122 @@
+{
+  "passed": 29,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "slides.pptx→pdf",
+      "passed": true
+    },
+    {
+      "test": "slides.pptx→png",
+      "passed": true
+    },
+    {
+      "test": "slides.pptx→jpg",
+      "passed": true
+    },
+    {
+      "test": "slides.pptx→txt",
+      "passed": true
+    },
+    {
+      "test": "slides.pptx→ppt",
+      "passed": true
+    },
+    {
+      "test": "slides.pptx→odp",
+      "passed": true
+    },
+    {
+      "test": "document.docx→pdf",
+      "passed": true
+    },
+    {
+      "test": "document.docx→png",
+      "passed": true
+    },
+    {
+      "test": "document.docx→jpg",
+      "passed": true
+    },
+    {
+      "test": "document.docx→txt",
+      "passed": true
+    },
+    {
+      "test": "document.docx→doc",
+      "passed": true
+    },
+    {
+      "test": "document.docx→rtf",
+      "passed": true
+    },
+    {
+      "test": "document.docx→odt",
+      "passed": true
+    },
+    {
+      "test": "document.docx→html",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→pdf",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→png",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→jpg",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→csv",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→tsv",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→json",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→txt",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→xls",
+      "passed": true
+    },
+    {
+      "test": "sheets.xlsx→ods",
+      "passed": true
+    },
+    {
+      "test": "ppt→pptx",
+      "passed": true
+    },
+    {
+      "test": "doc→docx",
+      "passed": true
+    },
+    {
+      "test": "xls→xlsx",
+      "passed": true
+    },
+    {
+      "test": "officePdf",
+      "passed": true
+    },
+    {
+      "test": "officeMergePDF",
+      "passed": true
+    },
+    {
+      "test": "removeMetadata",
+      "passed": true
+    }
+  ]
+}

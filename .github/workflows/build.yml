@@ -1,0 +1,24 @@
+name: Windows build and checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build Windows application
+        shell: pwsh
+        run: ./build.ps1 -SkipRuntimeCheck
+      - name: Check tool parameters and progress lifecycle
+        shell: pwsh
+        run: |
+          dotnet run --project work/F9Checks -- outputs/f9-parameter-tests.json
+          if ($LASTEXITCODE -ne 0) { throw 'Tool parameter checks failed.' }
+          dotnet run --project work/ProgressChecks -- outputs/progress-ui-tests.json
+          if ($LASTEXITCODE -ne 0) { throw 'Progress lifecycle checks failed.' }

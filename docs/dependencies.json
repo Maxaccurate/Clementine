@@ -1,0 +1,119 @@
+{
+  "release_date": "2026-10-04",
+  "dotnet_runtime": "8.0.31 self-contained",
+  "python": "3.13.16 embedded",
+  "ffmpeg": "ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+  "python_packages": [
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2",
+      "license": "MIT"
+    },
+    {
+      "name": "et_xmlfile",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "name": "fire",
+      "version": "0.7.1",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "fonttools",
+      "version": "4.66.1",
+      "license": "MIT"
+    },
+    {
+      "name": "lxml",
+      "version": "6.1.3",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.3",
+      "license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+    },
+    {
+      "name": "opencv-python-headless",
+      "version": "5.0.0.93",
+      "license": "Apache 2.0"
+    },
+    {
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "license": "MIT"
+    },
+    {
+      "name": "pdf2docx",
+      "version": "0.5.13",
+      "license": "MIT"
+    },
+    {
+      "name": "pillow",
+      "version": "12.3.0",
+      "license": "MIT-CMU"
+    },
+    {
+      "name": "pillow_heif",
+      "version": "1.8.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "pymupdf",
+      "version": "1.28.2",
+      "license": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License"
+    },
+    {
+      "name": "pypdf",
+      "version": "6.19.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "pypdfium2",
+      "version": "5.13.0",
+      "license": "BSD-3-Clause, Apache-2.0, dependency licenses"
+    },
+    {
+      "name": "python-docx",
+      "version": "1.2.0",
+      "license": "MIT"
+    },
+    {
+      "name": "python-pptx",
+      "version": "1.0.2",
+      "license": "MIT"
+    },
+    {
+      "name": "reportlab",
+      "version": "5.0.1",
+      "license": "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc."
+    },
+    {
+      "name": "resvg_py",
+      "version": "0.5.0",
+      "license": "see bundled license"
+    },
+    {
+      "name": "termcolor",
+      "version": "3.3.0",
+      "license": "MIT"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "license": "PSF-2.0"
+    },
+    {
+      "name": "xlsxwriter",
+      "version": "3.2.9",
+      "license": "BSD-2-Clause"
+    }
+  ],
+  "sources": [
+    "https://www.python.org/downloads/windows/",
+    "https://www.gyan.dev/ffmpeg/builds/",
+    "https://pypi.org/",
+    "https://7-zip.org/"
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "passed": 45,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "alpha preservation png",
+      "passed": true
+    },
+    {
+      "test": "alpha preservation webp",
+      "passed": true
+    },
+    {
+      "test": "alpha preservation heic",
+      "passed": true
+    },
+    {
+      "test": "alpha preservation avif",
+      "passed": true
+    },
+    {
+      "test": "alpha preservation tiff",
+      "passed": true
+    },
+    {
+      "test": "editable image metadata",
+      "passed": true
+    },
+    {
+      "test": "single image tag removal",
+      "passed": true
+    },
+    {
+      "test": "orientation 1",
+      "passed": true
+    },
+    {
+      "test": "orientation 2",
+      "passed": true
+    },
+    {
+      "test": "orientation 3",
+      "passed": true
+    },
+    {
+      "test": "orientation 4",
+      "passed": true
+    },
+    {
+      "test": "orientation 5",
+      "passed": true
+    },
+    {
+      "test": "orientation 6",
+      "passed": true
+    },
+    {
+      "test": "orientation 7",
+      "passed": true
+    },
+    {
+      "test": "orientation 8",
+      "passed": true
+    },
+    {
+      "test": "collage grid",
+      "passed": true
+    },
+    {
+      "test": "collage row",
+      "passed": true
+    },
+    {
+      "test": "collage column",
+      "passed": true
+    },
+    {
+      "test": "collage featured",
+      "passed": true
+    },
+    {
+      "test": "visualizer landscape",
+      "passed": true
+    },
+    {
+      "test": "visualizer portrait",
+      "passed": true
+    },
+    {
+      "test": "visualizer square",
+      "passed": true
+    },
+    {
+      "test": "static visualizer background",
+      "passed": true
+    },
+    {
+      "test": "silent video speed",
+      "passed": true
+    },
+    {
+      "test": "pixelation and small-area blur",
+      "passed": true
+    },
+    {
+      "test": "target video size",
+      "passed": true
+    },
+    {
+      "test": "target audio size",
+      "passed": true
+    },
+    {
+      "test": "target image size",
+      "passed": true
+    },
+    {
+      "test": "editable audio metadata",
+      "passed": true
+    },
+    {
+      "test": "inspect .png",
+      "passed": true
+    },
+    {
+      "test": "inspect .mp4",
+      "passed": true
+    },
+    {
+      "test": "inspect .wav",
+      "passed": true
+    },
+    {
+      "test": "inspect .pdf",
+      "passed": true
+    },
+    {
+      "test": "live crop",
+      "passed": true
+    },
+    {
+      "test": "live edit",
+      "passed": true
+    },
+    {
+      "test": "live background",
+      "passed": true
+    },
+    {
+      "test": "live video redaction",
+      "passed": true
+    },
+    {
+      "test": "PDF page preview",
+      "passed": true
+    },
+    {
+      "test": "real frame timestamp stepping",
+      "passed": true
+    },
+    {
+      "test": "normalized loudness",
+      "passed": true
+    },
+    {
+      "test": "normalized playback",
+      "passed": true
+    },
+    {
+      "test": "redacted video playback",
+      "passed": true
+    },
+    {
+      "test": "1000 Hz beep replaces original speech in preview",
+      "passed": true
+    },
+    {
+      "test": "empty archive",
+      "passed": true
+    },
+    {
+      "test": "archive traversal blocked",
+      "passed": true
+    }
+  ]
+}

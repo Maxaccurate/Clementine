@@ -1,0 +1,126 @@
+{
+  "passed": 30,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "cropImage offers custom aspect ratio",
+      "passed": true
+    },
+    {
+      "test": "cropImage resolves decimal custom ratio for the real worker",
+      "passed": true
+    },
+    {
+      "test": "cropImage rejects custom ratio width 0",
+      "passed": true
+    },
+    {
+      "test": "cropImage rejects custom ratio width -1",
+      "passed": true
+    },
+    {
+      "test": "cropImage rejects custom ratio width NaN",
+      "passed": true
+    },
+    {
+      "test": "cropImage rejects custom ratio width Infinity",
+      "passed": true
+    },
+    {
+      "test": "cropImage rejects custom ratio width abc",
+      "passed": true
+    },
+    {
+      "test": "cropImage rejects custom ratio width ",
+      "passed": true
+    },
+    {
+      "test": "cropVideo offers custom aspect ratio",
+      "passed": true
+    },
+    {
+      "test": "cropVideo resolves decimal custom ratio for the real worker",
+      "passed": true
+    },
+    {
+      "test": "cropVideo rejects custom ratio width 0",
+      "passed": true
+    },
+    {
+      "test": "cropVideo rejects custom ratio width -1",
+      "passed": true
+    },
+    {
+      "test": "cropVideo rejects custom ratio width NaN",
+      "passed": true
+    },
+    {
+      "test": "cropVideo rejects custom ratio width Infinity",
+      "passed": true
+    },
+    {
+      "test": "cropVideo rejects custom ratio width abc",
+      "passed": true
+    },
+    {
+      "test": "cropVideo rejects custom ratio width ",
+      "passed": true
+    },
+    {
+      "test": "crop coordinates cannot extend outside original image",
+      "passed": true
+    },
+    {
+      "test": "zero crop dimensions cannot be saved",
+      "passed": true
+    },
+    {
+      "test": "fractional pixel dimensions rejected",
+      "passed": true
+    },
+    {
+      "test": "non-finite edits rejected",
+      "passed": true
+    },
+    {
+      "test": "invalid JSON regions rejected",
+      "passed": true
+    },
+    {
+      "test": "backwards time range rejected",
+      "passed": true
+    },
+    {
+      "test": "time outside source duration rejected",
+      "passed": true
+    },
+    {
+      "test": "invalid clock seconds rejected",
+      "passed": true
+    },
+    {
+      "test": "clock format and end-zero supported",
+      "passed": true
+    },
+    {
+      "test": "out-of-range mosaic block size rejected",
+      "passed": true
+    },
+    {
+      "test": "mosaic is the default for image and video redaction",
+      "passed": true
+    },
+    {
+      "test": "PDF page numbers beyond source rejected",
+      "passed": true
+    },
+    {
+      "test": "PDF repeated/reordered pages allowed",
+      "passed": true
+    },
+    {
+      "test": "negative snapshot frame offset retained",
+      "passed": true
+    }
+  ]
+}

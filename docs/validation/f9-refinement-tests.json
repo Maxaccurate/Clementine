@@ -1,0 +1,98 @@
+{
+  "passed": 23,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "mosaic is averaged pixel blocks, not a black cover; outside pixels and source preserved",
+      "passed": true
+    },
+    {
+      "test": "mosaic particle size changes the number of distinct blocks",
+      "passed": true
+    },
+    {
+      "test": "image preview matches exported mosaic pixels",
+      "passed": true
+    },
+    {
+      "test": "multi-image HEIC opens its primary photo instead of failing",
+      "passed": true
+    },
+    {
+      "test": "HEIC selected frame is used in both edit preview and saved file",
+      "passed": true
+    },
+    {
+      "test": "multi-page TIFF can edit a selected page and retains the original pages",
+      "passed": true
+    },
+    {
+      "test": "camera MPO with a JPEG extension opens and edits its selected photo",
+      "passed": true
+    },
+    {
+      "test": "image custom ratio 3:2 matches preview and exported size",
+      "passed": true
+    },
+    {
+      "test": "image custom ratio 21:9 matches preview and exported size",
+      "passed": true
+    },
+    {
+      "test": "image custom ratio 2.35:1 matches preview and exported size",
+      "passed": true
+    },
+    {
+      "test": "image custom ratio 1:2 matches preview and exported size",
+      "passed": true
+    },
+    {
+      "test": "image custom ratio free matches preview and exported size",
+      "passed": true
+    },
+    {
+      "test": "video custom ratio preserves duration and audio; preview and export agree",
+      "passed": true
+    },
+    {
+      "test": "video mosaic preview and real encoding both use selectable particle size",
+      "passed": true
+    },
+    {
+      "test": "trimAudio playback honors selected start and end",
+      "passed": true
+    },
+    {
+      "test": "trimVideo playback honors selected start and end",
+      "passed": true
+    },
+    {
+      "test": "PDF page rotation is visible in preview",
+      "passed": true
+    },
+    {
+      "test": "collage preview renders the composite instead of the first source image",
+      "passed": true
+    },
+    {
+      "test": "invalid custom ratio 0:1 rejected before processing",
+      "passed": true
+    },
+    {
+      "test": "invalid custom ratio 1:0 rejected before processing",
+      "passed": true
+    },
+    {
+      "test": "invalid custom ratio -1:2 rejected before processing",
+      "passed": true
+    },
+    {
+      "test": "invalid custom ratio nan:1 rejected before processing",
+      "passed": true
+    },
+    {
+      "test": "invalid custom ratio abc:2 rejected before processing",
+      "passed": true
+    }
+  ]
+}

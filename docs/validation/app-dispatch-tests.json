@@ -1,0 +1,36 @@
+{
+  "passed": 5,
+  "failed": 0,
+  "checks": [
+    {
+      "source": "image.png",
+      "format": "jpg",
+      "passed": true,
+      "error": null
+    },
+    {
+      "source": "movie.mp4",
+      "format": "mov",
+      "passed": true,
+      "error": null
+    },
+    {
+      "source": "sound.wav",
+      "format": "mp3",
+      "passed": true,
+      "error": null
+    },
+    {
+      "source": "document.pdf",
+      "format": "docx",
+      "passed": true,
+      "error": null
+    },
+    {
+      "source": "bundle.zip",
+      "format": "tar",
+      "passed": true,
+      "error": null
+    }
+  ]
+}

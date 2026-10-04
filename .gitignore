@@ -1,0 +1,32 @@
+# Build products and portable runtimes
+outputs/
+**/bin/
+**/obj/
+**/__pycache__/
+*.py[cod]
+*.pdb
+.vs/
+.idea/
+.venv/
+venv/
+
+# Generated test data, downloaded packages and development experiments
+work/*-fixtures/
+work/*-results/
+work/downloads/
+work/progress-build/
+work/*.json
+work/*.log
+work/*.zip
+work/*.pptx
+work/*.png
+work/*.jpg
+
+# Local credentials and editor/system files
+.env
+.env.*
+!.env.example
+*.user
+*.suo
+Thumbs.db
+.DS_Store

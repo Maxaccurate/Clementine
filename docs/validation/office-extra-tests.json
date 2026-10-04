@@ -1,0 +1,70 @@
+{
+  "passed": 16,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "pptm input to PDF",
+      "passed": true
+    },
+    {
+      "test": "docm input to PDF",
+      "passed": true
+    },
+    {
+      "test": "xlsm input to PDF",
+      "passed": true
+    },
+    {
+      "test": ".odp input to PDF",
+      "passed": true
+    },
+    {
+      "test": ".rtf input to PDF",
+      "passed": true
+    },
+    {
+      "test": ".odt input to PDF",
+      "passed": true
+    },
+    {
+      "test": ".ods input to PDF",
+      "passed": true
+    },
+    {
+      "test": "UTF8 CSV to xlsx",
+      "passed": true
+    },
+    {
+      "test": "UTF8 CSV to pdf",
+      "passed": true
+    },
+    {
+      "test": "UTF8 CSV to png",
+      "passed": true
+    },
+    {
+      "test": "UTF8 CSV to jpg",
+      "passed": true
+    },
+    {
+      "test": "CSV leading equals retained as literal data",
+      "passed": true
+    },
+    {
+      "test": "Excel formula values and all sheets preserved",
+      "passed": true
+    },
+    {
+      "test": "actual menu classification slides.pptx",
+      "passed": true
+    },
+    {
+      "test": "actual menu classification document.docx",
+      "passed": true
+    },
+    {
+      "test": "actual menu classification sheets.xlsx",
+      "passed": true
+    }
+  ]
+}

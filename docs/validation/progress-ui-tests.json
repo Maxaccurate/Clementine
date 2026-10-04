@@ -1,0 +1,62 @@
+{
+  "passed": 14,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "missing progress does not crash UI",
+      "passed": true
+    },
+    {
+      "test": "invalid/partial progress ignored: {bad}",
+      "passed": true
+    },
+    {
+      "test": "invalid/partial progress ignored: {\u0022Total\u0022:0,\u0022Processed\u0022:0}",
+      "passed": true
+    },
+    {
+      "test": "invalid/partial progress ignored: {\u0022Total\u0022:2,\u0022Processed\u0022:3}",
+      "passed": true
+    },
+    {
+      "test": "invalid/partial progress ignored: {\u0022Total\u0022:2,\u0022Processed\u0022:-1}",
+      "passed": true
+    },
+    {
+      "test": "actual batch counts and Unicode filename read correctly",
+      "passed": true
+    },
+    {
+      "test": "worker progress is delivered through the actual runtime monitor",
+      "passed": true
+    },
+    {
+      "test": "monitor tolerates a partial write and picks up the next valid update",
+      "passed": true
+    },
+    {
+      "test": "single unknown-duration task shows elapsed time without percentage",
+      "passed": true
+    },
+    {
+      "test": "batch indicator uses actual completed count",
+      "passed": true
+    },
+    {
+      "test": "old preview completion cannot hide a newer task",
+      "passed": true
+    },
+    {
+      "test": "finishing one overlapping operation keeps remaining work visible",
+      "passed": true
+    },
+    {
+      "test": "late progress from disposed task cannot revive indicator",
+      "passed": true
+    },
+    {
+      "test": "completion replaces busy state and survives late callbacks",
+      "passed": true
+    }
+  ]
+}

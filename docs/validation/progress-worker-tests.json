@@ -1,0 +1,22 @@
+{
+  "passed": 4,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "per-file progress is published before work and tracks actual completed files",
+      "passed": true
+    },
+    {
+      "test": "grouped operations count one output task instead of claiming N files are independently done",
+      "passed": true
+    },
+    {
+      "test": "failed files do not stop progress or hide partial-success results",
+      "passed": true
+    },
+    {
+      "test": "source image hashes are preserved",
+      "passed": true
+    }
+  ]
+}

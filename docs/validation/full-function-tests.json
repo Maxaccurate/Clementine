@@ -1,0 +1,888 @@
+{
+  "conversion_directions": 188,
+  "tools": 25,
+  "checks": [
+    {
+      "test": "jpg-to-png",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-heic",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-webp",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-avif",
+      "passed": true
+    },
+    {
+      "test": "png-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "jpg-to-docx",
+      "passed": true
+    },
+    {
+      "test": "png-to-webp",
+      "passed": true
+    },
+    {
+      "test": "png-to-heic",
+      "passed": true
+    },
+    {
+      "test": "png-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "png-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "png-to-avif",
+      "passed": true
+    },
+    {
+      "test": "png-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "webp-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "png-to-docx",
+      "passed": true
+    },
+    {
+      "test": "webp-to-png",
+      "passed": true
+    },
+    {
+      "test": "webp-to-heic",
+      "passed": true
+    },
+    {
+      "test": "webp-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "webp-to-avif",
+      "passed": true
+    },
+    {
+      "test": "webp-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "webp-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "heic-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "heic-to-png",
+      "passed": true
+    },
+    {
+      "test": "heic-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "heic-to-webp",
+      "passed": true
+    },
+    {
+      "test": "heic-to-avif",
+      "passed": true
+    },
+    {
+      "test": "heic-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "heic-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-png",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-webp",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-heic",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-avif",
+      "passed": true
+    },
+    {
+      "test": "tiff-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "avif-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "avif-to-png",
+      "passed": true
+    },
+    {
+      "test": "avif-to-webp",
+      "passed": true
+    },
+    {
+      "test": "avif-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "avif-to-heic",
+      "passed": true
+    },
+    {
+      "test": "avif-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "avif-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-png",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-webp",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-heic",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-avif",
+      "passed": true
+    },
+    {
+      "test": "bmp-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "svg-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "svg-to-png",
+      "passed": true
+    },
+    {
+      "test": "svg-to-webp",
+      "passed": true
+    },
+    {
+      "test": "svg-to-tiff",
+      "passed": true
+    },
+    {
+      "test": "svg-to-avif",
+      "passed": true
+    },
+    {
+      "test": "svg-to-heic",
+      "passed": true
+    },
+    {
+      "test": "svg-to-bmp",
+      "passed": true
+    },
+    {
+      "test": "svg-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "gif-to-mp4",
+      "passed": true
+    },
+    {
+      "test": "gif-to-mov",
+      "passed": true
+    },
+    {
+      "test": "gif-to-mkv",
+      "passed": true
+    },
+    {
+      "test": "gif-to-webm",
+      "passed": true
+    },
+    {
+      "test": "gif-to-avi",
+      "passed": true
+    },
+    {
+      "test": "gif-to-wmv",
+      "passed": true
+    },
+    {
+      "test": "wav-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "wav-to-flac",
+      "passed": true
+    },
+    {
+      "test": "wav-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "wav-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "wav-to-opus",
+      "passed": true
+    },
+    {
+      "test": "wav-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "wav-to-wma",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-wav",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-flac",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-opus",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "mp3-to-wma",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-wav",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-flac",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-opus",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "m4a-to-wma",
+      "passed": true
+    },
+    {
+      "test": "flac-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "flac-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "flac-to-wav",
+      "passed": true
+    },
+    {
+      "test": "flac-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "flac-to-opus",
+      "passed": true
+    },
+    {
+      "test": "flac-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "flac-to-wma",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-wav",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-flac",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-opus",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "opus-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "ogg-to-wma",
+      "passed": true
+    },
+    {
+      "test": "opus-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "opus-to-wav",
+      "passed": true
+    },
+    {
+      "test": "opus-to-flac",
+      "passed": true
+    },
+    {
+      "test": "opus-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "opus-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "opus-to-wma",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-wav",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-flac",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-opus",
+      "passed": true
+    },
+    {
+      "test": "aiff-to-wma",
+      "passed": true
+    },
+    {
+      "test": "wma-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "wma-to-m4a",
+      "passed": true
+    },
+    {
+      "test": "wma-to-wav",
+      "passed": true
+    },
+    {
+      "test": "wma-to-flac",
+      "passed": true
+    },
+    {
+      "test": "wma-to-ogg",
+      "passed": true
+    },
+    {
+      "test": "wma-to-opus",
+      "passed": true
+    },
+    {
+      "test": "wma-to-aiff",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-mov",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-mkv",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-avi",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-webm",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-wmv",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-gif",
+      "passed": true
+    },
+    {
+      "test": "mp4-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "mov-to-mp4",
+      "passed": true
+    },
+    {
+      "test": "mov-to-mkv",
+      "passed": true
+    },
+    {
+      "test": "mov-to-avi",
+      "passed": true
+    },
+    {
+      "test": "mov-to-webm",
+      "passed": true
+    },
+    {
+      "test": "mov-to-wmv",
+      "passed": true
+    },
+    {
+      "test": "mov-to-gif",
+      "passed": true
+    },
+    {
+      "test": "mov-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-mp4",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-mov",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-webm",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-avi",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-gif",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-wmv",
+      "passed": true
+    },
+    {
+      "test": "mkv-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "webm-to-mp4",
+      "passed": true
+    },
+    {
+      "test": "webm-to-mov",
+      "passed": true
+    },
+    {
+      "test": "webm-to-mkv",
+      "passed": true
+    },
+    {
+      "test": "webm-to-wmv",
+      "passed": true
+    },
+    {
+      "test": "webm-to-avi",
+      "passed": true
+    },
+    {
+      "test": "webm-to-gif",
+      "passed": true
+    },
+    {
+      "test": "webm-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "avi-to-mp4",
+      "passed": true
+    },
+    {
+      "test": "avi-to-mov",
+      "passed": true
+    },
+    {
+      "test": "avi-to-mkv",
+      "passed": true
+    },
+    {
+      "test": "avi-to-webm",
+      "passed": true
+    },
+    {
+      "test": "avi-to-wmv",
+      "passed": true
+    },
+    {
+      "test": "avi-to-gif",
+      "passed": true
+    },
+    {
+      "test": "avi-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-mp4",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-mov",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-mkv",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-avi",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-webm",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-gif",
+      "passed": true
+    },
+    {
+      "test": "wmv-to-mp3",
+      "passed": true
+    },
+    {
+      "test": "pdf-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "pdf-to-docx",
+      "passed": true
+    },
+    {
+      "test": "pdf-to-txt",
+      "passed": true
+    },
+    {
+      "test": "pdf-to-png",
+      "passed": true
+    },
+    {
+      "test": "txt-to-jpg",
+      "passed": true
+    },
+    {
+      "test": "txt-to-png",
+      "passed": true
+    },
+    {
+      "test": "txt-to-srt",
+      "passed": true
+    },
+    {
+      "test": "txt-to-vtt",
+      "passed": true
+    },
+    {
+      "test": "txt-to-pdf",
+      "passed": true
+    },
+    {
+      "test": "srt-to-vtt",
+      "passed": true
+    },
+    {
+      "test": "srt-to-txt",
+      "passed": true
+    },
+    {
+      "test": "vtt-to-srt",
+      "passed": true
+    },
+    {
+      "test": "vtt-to-txt",
+      "passed": true
+    },
+    {
+      "test": "zip-to-tar",
+      "passed": true
+    },
+    {
+      "test": "zip-to-gz",
+      "passed": true
+    },
+    {
+      "test": "tar-to-zip",
+      "passed": true
+    },
+    {
+      "test": "zip-to-rar",
+      "passed": true
+    },
+    {
+      "test": "tar-to-gz",
+      "passed": true
+    },
+    {
+      "test": "gz-to-zip",
+      "passed": true
+    },
+    {
+      "test": "tar-to-rar",
+      "passed": true
+    },
+    {
+      "test": "gz-to-tar",
+      "passed": true
+    },
+    {
+      "test": "gz-to-rar",
+      "passed": true
+    },
+    {
+      "test": "rar-to-zip",
+      "passed": true
+    },
+    {
+      "test": "rar-to-tar",
+      "passed": true
+    },
+    {
+      "test": "rar-to-gz",
+      "passed": true
+    },
+    {
+      "test": "image-compress",
+      "passed": true
+    },
+    {
+      "test": "image-metadata",
+      "passed": true
+    },
+    {
+      "test": "image-edit",
+      "passed": true
+    },
+    {
+      "test": "image-background",
+      "passed": true
+    },
+    {
+      "test": "image-crop",
+      "passed": true
+    },
+    {
+      "test": "image-redact",
+      "passed": true
+    },
+    {
+      "test": "images-pdf",
+      "passed": true
+    },
+    {
+      "test": "images-collage",
+      "passed": true
+    },
+    {
+      "test": "video-compress",
+      "passed": true
+    },
+    {
+      "test": "video-metadata",
+      "passed": true
+    },
+    {
+      "test": "video-mute",
+      "passed": true
+    },
+    {
+      "test": "video-trim",
+      "passed": true
+    },
+    {
+      "test": "video-crop",
+      "passed": true
+    },
+    {
+      "test": "video-speed",
+      "passed": true
+    },
+    {
+      "test": "video-join",
+      "passed": true
+    },
+    {
+      "test": "video-snapshots",
+      "passed": true
+    },
+    {
+      "test": "video-split",
+      "passed": true
+    },
+    {
+      "test": "video-redact",
+      "passed": true
+    },
+    {
+      "test": "audio-compress",
+      "passed": true
+    },
+    {
+      "test": "audio-metadata",
+      "passed": true
+    },
+    {
+      "test": "audio-normalize",
+      "passed": true
+    },
+    {
+      "test": "audio-visualizer",
+      "passed": true
+    },
+    {
+      "test": "audio-trim",
+      "passed": true
+    },
+    {
+      "test": "audio-channels",
+      "passed": true
+    },
+    {
+      "test": "audio-bleep",
+      "passed": true
+    },
+    {
+      "test": "pdf-compress",
+      "passed": true
+    },
+    {
+      "test": "pdf-metadata",
+      "passed": true
+    },
+    {
+      "test": "pdf-split",
+      "passed": true
+    },
+    {
+      "test": "pdf-merge",
+      "passed": true
+    },
+    {
+      "test": "pdf-organize",
+      "passed": true
+    },
+    {
+      "test": "archive-extract",
+      "passed": true
+    },
+    {
+      "test": "all original fixture hashes unchanged",
+      "passed": true
+    }
+  ],
+  "passed": 220,
+  "failed": 0
+}
