@@ -20,6 +20,30 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if(args.Length==3&&args[0]=="--debug-media-test")
+        {
+            var testApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
+            var media=new System.Windows.Controls.MediaElement{LoadedBehavior=System.Windows.Controls.MediaState.Manual,UnloadedBehavior=System.Windows.Controls.MediaState.Stop,Height=220};
+            var slider=new System.Windows.Controls.Slider();string? error=null;
+            var transport=new MediaTransport(media,slider,[args[1]],Catalog.Category(args[1])=="audio",false,(_,_,_,_)=>throw new InvalidOperationException("Unexpected compatibility fallback"),CancellationToken.None,text=>error=text);
+            var panel=new System.Windows.Controls.StackPanel();panel.Children.Add(media);panel.Children.Add(transport);media.Volume=0;
+            var window=new Window{Content=panel,Width=620,Height=420,ShowActivated=false,ShowInTaskbar=false,Title="ZestDrop 播放器检查"};
+            window.Loaded+=async(_,_)=>
+            {
+                bool passed=false;double advanced=0,paused=0,sought=0;
+                try
+                {
+                    transport.SetDuration(35);await transport.Toggle();
+                    for(int i=0;i<100&&!transport.IsPlaying;i++)await Task.Delay(100);
+                    await Task.Delay(1000);advanced=media.Position.TotalSeconds;
+                    transport.Pause();paused=media.Position.TotalSeconds;await Task.Delay(350);bool holds=Math.Abs(media.Position.TotalSeconds-paused)<.15;
+                    await transport.Seek(10);await Task.Delay(400);sought=media.Position.TotalSeconds;
+                    passed=advanced>.1&&holds&&Math.Abs(sought-10)<.5&&error==null;
+                }
+                catch(Exception ex){error=ex.Message;}
+                finally{transport.Dispose();File.WriteAllText(args[2],JsonSerializer.Serialize(new{passed,advanced,paused,sought,error}));window.Close();testApp.Shutdown();}
+            };window.Show();testApp.Run();return 0;
+        }
         if(args.Length==3&&args[0]=="--capabilities")
         {
             string[] files=[args[1]];
@@ -232,7 +256,7 @@ internal sealed class Resident : IDisposable
 
     private void BeginOperation(string[] paths,Operation operation)
     {
-        if(operation.Tool && ((operation.Fields?.Length??0)>0 || operation.Ordered))
+        if(operation.Tool && ((operation.Fields?.Length??0)>0 || operation.Ordered || Catalog.Category(paths[0]) is "audio"or"video"))
         {
             var tool=new ToolWindow(paths,operation,EnqueueTool); tool.Show(); tool.Activate();
         }

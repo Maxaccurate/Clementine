@@ -8,6 +8,7 @@
     <Compile Include="../ZestDrop/UiTheme.cs" Link="UiTheme.cs"/>
     <Compile Include="../ZestDrop/AppIcon.cs" Link="AppIcon.cs"/>
     <Compile Include="../ZestDrop/DragShortcutTracker.cs" Link="DragShortcutTracker.cs"/>
+    <Compile Include="../ZestDrop/MediaSegment.cs" Link="MediaSegment.cs"/>
     <EmbeddedResource Include="../ZestDrop/assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
   </ItemGroup>
 </Project>

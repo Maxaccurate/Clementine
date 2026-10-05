@@ -49,6 +49,8 @@ Outputs are saved alongside the originals. Existing files are preserved, and dup
 
 Supported categories include images, video, audio, documents, and archives. Tools cover image adjustments, backgrounds, cropping and pixelation; video trimming, speed changes, joining and frame capture; audio loudness, channels and beep redaction; PDF page management; and Office document export. Image and video cropping support custom aspect ratios. Progress indicators show the current stage, elapsed time, and actual processed counts for batch jobs.
 
+Every audio and video tool window includes playback controls, a seek bar, time display, volume, and mute. Original files can be played in full. Supported tools also offer processed-effect previews for the current segment; preview length does not limit exported output.
+
 See the [usage guide](docs/usage.md) (Chinese) for the full feature list and limitations. Office exports that preserve native layout require the corresponding desktop version of Microsoft PowerPoint, Word, or Excel.
 
 ## Build from source

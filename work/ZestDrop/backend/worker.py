@@ -94,11 +94,19 @@ def preview(path,action,params,folder,paths=None):
 
 def playback(path,action,params,folder):
     folder=Path(folder);folder.mkdir(parents=True,exist_ok=True);kind=category(path);info=probe(path);start=max(0,min(number(params,'time',0),max(0,duration(info)-.1)));length=min(30,duration(info)-start)
+    if action=='preview-original' and truth(params.get('fullPreview','false')):start=0;length=duration(info)
     if action in ('trimAudio','trimVideo'):
         first=number(params,'start',0);last=number(params,'end',0) or duration(info)
         if first<0 or last<=first or last>duration(info)+.1:raise ValueError('起止时间超出文件范围')
         start=max(first,min(start,last-.001));length=min(30,last-start)
-    if kind=='audio':
+    if kind=='audio' and action=='audioToVideo':
+        target=folder/'playback.mp4';w,h={'landscape':(1280,720),'portrait':(720,1280),'square':(1080,1080)}[params.get('aspect','landscape')]
+        background=params.get('backgroundImage','').strip()
+        if background:
+            args=['-loop','1','-i',background,'-ss',start,'-i',path,'-t',length,'-map','0:v:0','-map','1:a:0','-vf',f'scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2']
+        else:args=['-ss',start,'-i',path,'-t',length,'-filter_complex',f'[0:a]showwaves=s={w}x{h}:mode=line:colors=0xff6500:r=30,format=yuv420p[v]','-map','[v]','-map','0:a:0']
+        ffmpeg([*args,'-shortest',*media.video_args('mp4'),target])
+    elif kind=='audio':
         target=folder/'playback.wav';filters=[]
         if action=='normalizeAudio':filters.append(f"loudnorm=I={number(params,'loudness',-16)}:LRA={number(params,'range',11)}:TP={number(params,'peak',-1.5)}")
         if action=='audioChannels':
@@ -129,7 +137,8 @@ def playback(path,action,params,folder):
             args+=['-filter_complex',graph,'-map','[playv]','-map','0:a?'];filters=[]
         if filters:filters.append('pad=ceil(iw/2)*2:ceil(ih/2)*2')
         ffmpeg([*args,*(['-vf',','.join(filters)] if filters else []),*media.video_args('mp4'),target])
-    return {'Preview':str(target)}
+    playback_info=probe(target);actual=duration(playback_info)
+    return {'Preview':str(target),'Start':start,'Duration':actual,'SourceDuration':duration(info),'Rate':number(params,'speed',2) if action=='changeVideoSpeed' else 1,'Kind':'video' if any(s['codec_type']=='video' for s in playback_info['streams']) else 'audio','LinearTimeline':not(action=='trimAudio' and truth(params.get('removeSilence','false')))}
 
 def frame_step(path,params):
     t=number(params,'time',0);direction=int(number(params,'direction',1))

@@ -16,6 +16,11 @@ internal static class Checks
         var checks=new List<object>();int failed=0;
         void Check(string name,Action action){try{action();checks.Add(new{test=name,passed=true});}catch(Exception ex){failed++;checks.Add(new{test=name,passed=false,error=ex.Message});}}
         void Require(bool value){if(!value)throw new Exception("Unexpected progress result");}
+        Check("processed clip maps playback time to original source time",()=>{var clip=new MediaSegment(50,30);Require(clip.ToSource(12)==62&&clip.ToMedia(62)==12);});
+        Check("speed preview maps time correctly in both directions",()=>{var clip=new MediaSegment(20,15,2);Require(clip.End==50&&clip.ToSource(10)==40&&clip.ToMedia(40)==10);});
+        Check("seek outside a processed segment requests another segment",()=>{var clip=new MediaSegment(50,30);Require(!clip.Contains(20)&&!clip.Contains(100)&&clip.Contains(65));});
+        Check("time mapping clamps invalid media positions",()=>{var clip=new MediaSegment(50,30);Require(clip.ToMedia(0)==0&&clip.ToMedia(200)==30&&clip.ToSource(-5)==50);});
+        Check("playback time labels handle hours and long durations",()=>Require(MediaSegment.Format(130)=="2:10"&&MediaSegment.Format(3662)=="1:01:02"));
         DragShortcutTracker Drag(){var t=new DragShortcutTracker(4,4);t.Update(true,false,false,false,100,100,true);return t;}
         Check("Shift typing without a mouse drag does not trigger",()=>{var t=new DragShortcutTracker(4,4);Require(t.Update(false,true,false,false,100,100,true)==DragMenuRequest.None);});
         Check("Shift clicking or small pointer movement does not trigger",()=>{var t=Drag();Require(t.Update(true,true,false,false,102,102,true)==DragMenuRequest.None);});
