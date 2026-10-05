@@ -51,6 +51,8 @@ Supported categories include images, video, audio, documents, and archives. Tool
 
 Every audio and video tool window includes playback controls, a seek bar, time display, volume, and mute. Original files can be played in full. Supported tools also offer processed-effect previews for the current segment; preview length does not limit exported output.
 
+The player uses compact dark controls and a custom timeline. Audio and video trimming expose draggable start/end handles and highlight the selected range; moving these handles updates the time fields, and editing the fields updates the timeline.
+
 See the [usage guide](docs/usage.md) (Chinese) for the full feature list and limitations. Office exports that preserve native layout require the corresponding desktop version of Microsoft PowerPoint, Word, or Excel.
 
 ## Build from source

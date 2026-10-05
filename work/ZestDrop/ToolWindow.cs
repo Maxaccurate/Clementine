@@ -62,6 +62,7 @@ internal sealed class ToolWindow:Window
     private bool HasMedia=>Catalog.Category(paths[0]) is "audio"or"video";
     private MediaTransport? transport;
     private bool syncingPlayback;
+    private bool syncingTrim;
     private bool HasTimeline=>operation.Id is "cropVideo"or"redactVideo"or"videoSnapshots"or"trimVideo"or"trimAudio"or"redactAudio";
     private bool RefreshFrame=>VisualPreview||HasTimeline&&Catalog.Category(paths[0])=="video";
     private Button? compareButton;
@@ -111,9 +112,14 @@ internal sealed class ToolWindow:Window
         left.Children.Add(previewButtons);
         if(HasMedia)
         {
+            previewHost.Background=Brushes.Black;
             transport=new MediaTransport(player,timeline,paths,Catalog.Category(paths[0])=="audio",ProcessedPlayback&&paths.Length==1,PreparePlayback,closing.Token,text=>status.Text=text);
             transport.ViewChanged+=()=>{player.Visibility=transport.HasVideo?Visibility.Visible:Visibility.Hidden;image.Visibility=transport.HasVideo?Visibility.Collapsed:Visibility.Visible;};
+            left.Children.Remove(previewHost);
+            var surface=new StackPanel{Background=Brushes.Black};surface.Children.Add(previewHost);surface.Children.Add(transport.Controls);
+            var mediaSurface=new Border{Child=surface,CornerRadius=new CornerRadius(10),Background=Brushes.Black,ClipToBounds=true};mediaSurface.SizeChanged+=(_,_)=>mediaSurface.Clip=new RectangleGeometry(new Rect(0,0,mediaSurface.ActualWidth,mediaSurface.ActualHeight),10,10);left.Children.Add(mediaSurface);
             left.Children.Add(transport);
+            if(operation.Id is "trimVideo"or"trimAudio")transport.RangeChanged+=(first,last)=>{syncingTrim=true;Set("start",first.ToString("0.000",CultureInfo.InvariantCulture));Set("end",last.ToString("0.000",CultureInfo.InvariantCulture));syncingTrim=false;transport.InvalidateEffect();};
         }
         if(HasTimeline||HasMedia)
         {
@@ -251,7 +257,7 @@ internal sealed class ToolWindow:Window
         }
         catch(OperationCanceledException){}
         catch(Exception ex){status.Text="预览不可用："+ex.Message+"。仍可填写参数。";}
-        loaded=true;saveButton.IsEnabled=true;framePicker.IsEnabled=true;SetMetadataState();
+        loaded=true;saveButton.IsEnabled=true;framePicker.IsEnabled=true;SetMetadataState();SyncTrimRange();
     }
     private void Set(string name,string value)
     {
@@ -352,7 +358,8 @@ internal sealed class ToolWindow:Window
     private void SetMetadataState(){if(controls.TryGetValue("metadata",out var table)&&table is MetadataEditor editor)editor.IsReadOnly=Get("remove")=="true";}
     private void ParameterChanged()
     {
-        if(syncingRegion||syncingPlayback)return;
+        if(syncingRegion||syncingPlayback||syncingTrim)return;
+        SyncTrimRange();
         transport?.InvalidateEffect();
         if(regionList.SelectedItem is ListBoxItem item&&item.Tag is Dictionary<string,object> r)
         {
@@ -363,6 +370,11 @@ internal sealed class ToolWindow:Window
             try{range["start"]=TimeValue(Get("start","0"));range["end"]=TimeValue(Get("end","0"));audioItem.Content=$"{range["start"]:0.000}–{range["end"]:0.000} 秒";}catch(ArgumentException){}
         }
         if(RefreshFrame&&!HasMedia)SchedulePreview();
+    }
+    private void SyncTrimRange()
+    {
+        if(transport==null||operation.Id is not("trimVideo"or"trimAudio")||totalDuration<=0)return;
+        try{double first=TimeValue(Get("start","0")),last=TimeValue(Get("end","0"));if(last==0)last=totalDuration;if(first>=0&&last>first&&last<=totalDuration+.001)transport.SetTrimRange(first,last);}catch(ArgumentException){}catch(FormatException){}
     }
     private async Task Save()
     {

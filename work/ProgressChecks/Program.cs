@@ -16,6 +16,10 @@ internal static class Checks
         var checks=new List<object>();int failed=0;
         void Check(string name,Action action){try{action();checks.Add(new{test=name,passed=true});}catch(Exception ex){failed++;checks.Add(new{test=name,passed=false,error=ex.Message});}}
         void Require(bool value){if(!value)throw new Exception("Unexpected progress result");}
+        Check("trim start handle cannot cross end",()=>Require(TrimRange.Start(90,60,120)<60));
+        Check("trim end handle cannot cross start",()=>Require(TrimRange.End(10,40,120)>40));
+        Check("trim handles stay inside source duration",()=>Require(TrimRange.Start(-2,60,120)==0&&TrimRange.End(200,40,120)==120));
+        Check("short clips retain a valid range",()=>Require(TrimRange.Start(.05,.02,.02)==0&&TrimRange.End(0,0,.02)==.02));
         Check("processed clip maps playback time to original source time",()=>{var clip=new MediaSegment(50,30);Require(clip.ToSource(12)==62&&clip.ToMedia(62)==12);});
         Check("speed preview maps time correctly in both directions",()=>{var clip=new MediaSegment(20,15,2);Require(clip.End==50&&clip.ToSource(10)==40&&clip.ToMedia(40)==10);});
         Check("seek outside a processed segment requests another segment",()=>{var clip=new MediaSegment(50,30);Require(!clip.Contains(20)&&!clip.Contains(100)&&clip.Contains(65));});

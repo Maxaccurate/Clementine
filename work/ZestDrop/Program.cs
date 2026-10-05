@@ -20,6 +20,18 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if(args.Length==4&&args[0]=="--debug-tool-render")
+        {
+            var testApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnMainWindowClose};
+            var window=new ToolWindow([args[2]],Catalog.Definition(args[1],Catalog.Category(args[2])),Backend.Execute);
+            window.Loaded+=async(_,_)=>
+            {
+                await Task.Delay(3000);window.UpdateLayout();
+                var bitmap=new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,System.Windows.Media.PixelFormats.Pbgra32);
+                var background=new System.Windows.Media.DrawingVisual();using(var dc=background.RenderOpen())dc.DrawRectangle(window.Background,null,new Rect(0,0,window.ActualWidth,window.ActualHeight));bitmap.Render(background);bitmap.Render((System.Windows.Media.Visual)window.Content);
+                var encoder=new System.Windows.Media.Imaging.PngBitmapEncoder();encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));using(var stream=File.Create(args[3]))encoder.Save(stream);window.Close();
+            };testApp.Run(window);return 0;
+        }
         if(args.Length==3&&args[0]=="--debug-media-test")
         {
             var testApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
