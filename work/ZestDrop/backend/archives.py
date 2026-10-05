@@ -29,41 +29,51 @@ def stored_rar(folder,path):
                 with open(file,'rb') as source:shutil.copyfileobj(source,output)
         rar_header(output,vint(5)+vint(0)+vint(0))
 
+MAX_ENTRIES=20000
+MAX_BYTES=10_000_000_000
+
+def check_scale(count,size):
+    if count>MAX_ENTRIES or size>MAX_BYTES: raise ValueError(T('压缩包解压规模超过当前限制'))
+
 def safe_name(name):
     name=name.replace('\\','/'); path=PurePosixPath(name)
-    if path.is_absolute() or '..' in path.parts or any(':' in part for part in path.parts): raise ValueError('压缩包包含不安全的文件路径')
+    if path.is_absolute() or '..' in path.parts or any(':' in part for part in path.parts): raise ValueError(T('压缩包包含不安全的文件路径'))
     return path
 
 def extract_to(path,folder):
     path=Path(path); suffix=path.suffix.lower()
     if suffix=='.zip':
         with zipfile.ZipFile(path) as archive:
-            entries=archive.infolist()
-            if len(entries)>20000 or sum(x.file_size for x in entries)>10_000_000_000: raise ValueError('压缩包解压规模超过当前限制')
+            entries=archive.infolist(); check_scale(len(entries),sum(x.file_size for x in entries))
             for entry in entries:
                 safe_name(entry.filename)
-                if stat.S_ISLNK(entry.external_attr>>16): raise ValueError('暂不解压符号链接')
+                if stat.S_ISLNK(entry.external_attr>>16): raise ValueError(T('暂不解压符号链接'))
             archive.extractall(folder)
     elif tarfile.is_tarfile(path):
         with tarfile.open(path) as archive:
-            entries=archive.getmembers()
-            if len(entries)>20000 or sum(x.size for x in entries)>10_000_000_000: raise ValueError('压缩包解压规模超过当前限制')
+            entries=archive.getmembers(); check_scale(len(entries),sum(x.size for x in entries))
             for entry in entries:
                 safe_name(entry.name)
-                if not (entry.isfile() or entry.isdir()): raise ValueError('暂不解压链接或设备文件')
+                if not (entry.isfile() or entry.isdir()): raise ValueError(T('暂不解压链接或设备文件'))
             archive.extractall(folder,filter='data')
     elif suffix in ('.gz','.gzip'):
-        with gzip.open(path,'rb') as source,open(folder/path.stem,'wb') as target: shutil.copyfileobj(source,target)
+        # gzip has no trustworthy size header, so enforce the limit while decompressing.
+        written=0
+        with gzip.open(path,'rb') as source,open(folder/path.stem,'wb') as target:
+            for block in iter(lambda:source.read(1<<20),b''):
+                written+=len(block); check_scale(1,written); target.write(block)
     elif suffix=='.rar':
-        if not SEVEN.exists(): raise ValueError('RAR 解包需要本机 7-Zip')
-        listing=process([SEVEN,'l','-slt','-ba','-sccUTF-8',path])
+        if not SEVEN.exists(): raise ValueError(T('RAR 解包需要本机 7-Zip'))
+        listing=process([SEVEN,'l','-slt','-ba','-sccUTF-8',path]); count=size=0
         for line in listing.splitlines():
-            if line.startswith('Path = '): safe_name(line[7:])
-            if line.startswith(('Symbolic Link = ','Hard Link = ')) and line.split('=',1)[1].strip(): raise ValueError('暂不解压链接')
+            if line.startswith('Path = '): safe_name(line[7:]); count+=1
+            if line.startswith('Size = ') and line[7:].strip().isdigit(): size+=int(line[7:])
+            if line.startswith(('Symbolic Link = ','Hard Link = ')) and line.split('=',1)[1].strip(): raise ValueError(T('暂不解压链接'))
+        check_scale(count,size)
         process([SEVEN,'x','-y','-sccUTF-8',f'-o{folder}',path])
         for file in folder.rglob('*'):
-            if file.is_symlink(): raise ValueError('解压结果包含链接')
-    else: raise ValueError('不支持的压缩包格式')
+            if file.is_symlink(): raise ValueError(T('解压结果包含链接'))
+    else: raise ValueError(T('不支持的压缩包格式'))
 
 def pack(folder,path,fmt):
     files=sorted(folder.rglob('*'))
@@ -76,7 +86,7 @@ def pack(folder,path,fmt):
             for file in folder.iterdir(): archive.add(file,arcname=file.name)
     elif fmt=='rar':
         stored_rar(folder,path)
-    else: raise ValueError('不支持的压缩包输出')
+    else: raise ValueError(T('不支持的压缩包输出'))
 
 def convert(paths,fmt,params):
     with tempfile.TemporaryDirectory(prefix='zestdrop-archive-') as temp:
@@ -85,7 +95,7 @@ def convert(paths,fmt,params):
         else:
             for path in paths:
                 path=Path(path); target=folder/path.name
-                if target.exists(): raise ValueError('选中文件有相同名称，请分开处理')
+                if target.exists(): raise ValueError(T('选中文件有相同名称，请分开处理'))
                 if path.is_dir(): shutil.copytree(path,target,symlinks=False)
                 else: shutil.copy2(path,target)
         extension='.tar.gz' if fmt=='gz' else '.'+fmt

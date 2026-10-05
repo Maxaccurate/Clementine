@@ -2,6 +2,8 @@
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms></PropertyGroup>
   <ItemGroup>
     <Compile Include="../ZestDrop/Models.cs" Link="Models.cs"/>
+    <Compile Include="../ZestDrop/Strings.cs" Link="Strings.cs"/>
+    <Compile Include="../ZestDrop/StringsEn.cs" Link="StringsEn.cs"/>
     <Compile Include="../ZestDrop/ProgressReader.cs" Link="ProgressReader.cs"/>
     <Compile Include="../ZestDrop/Backend.cs" Link="Backend.cs"/>
     <Compile Include="../ZestDrop/ActivityIndicator.cs" Link="ActivityIndicator.cs"/>
@@ -10,6 +12,14 @@
     <Compile Include="../ZestDrop/DragShortcutTracker.cs" Link="DragShortcutTracker.cs"/>
     <Compile Include="../ZestDrop/MediaSegment.cs" Link="MediaSegment.cs"/>
     <Compile Include="../ZestDrop/TrimRange.cs" Link="TrimRange.cs"/>
+    <Compile Include="../ZestDrop/TempSweep.cs" Link="TempSweep.cs"/>
+    <Compile Include="../ZestDrop/Native.cs" Link="Native.cs"/>
+    <Compile Include="../ZestDrop/JobCard.cs" Link="JobCard.cs"/>
+    <Compile Include="../ZestDrop/TaskIndicatorWindow.cs" Link="TaskIndicatorWindow.cs"/>
+    <Compile Include="../ZestDrop/ProcessTreePause.cs" Link="ProcessTreePause.cs"/>
+    <Compile Include="../ZestDrop/Catalog.cs" Link="Catalog.cs"/>
+    <Compile Include="../ZestDrop/OfficeBridge.cs" Link="OfficeBridge.cs"/>
+    <Compile Include="../ZestDrop/JobValidation.cs" Link="JobValidation.cs"/>
     <EmbeddedResource Include="../ZestDrop/assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
   </ItemGroup>
 </Project>

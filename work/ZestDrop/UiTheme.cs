@@ -8,13 +8,13 @@ namespace ZestDrop;
 
 internal static class UiTheme
 {
-    public static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(36,39,43));
-    public static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(110,115,123));
-    public static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(213,84,24));
+    public static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(36, 39, 43));
+    public static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(110, 115, 123));
+    public static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(213, 84, 24));
     public static void Apply(Window window)
     {
-        window.Icon=AppIcon.Window;
-        window.Resources=(ResourceDictionary)XamlReader.Parse("""
+        window.Icon = AppIcon.Window;
+        window.Resources = (ResourceDictionary)XamlReader.Parse("""
         <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
           <Style TargetType="Button">
             <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="#24272B"/>
@@ -39,21 +39,34 @@ internal static class UiTheme
           <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#24272B"/></Style>
         </ResourceDictionary>
         """);
-        window.FontFamily=new FontFamily("Microsoft YaHei UI");window.Foreground=Ink;window.FontSize=13;
-        window.Background=new SolidColorBrush(Color.FromRgb(248,249,250));
-        window.WindowStyle=WindowStyle.None;
-        WindowChrome.SetWindowChrome(window,new WindowChrome{CaptionHeight=42,ResizeBorderThickness=new Thickness(6),GlassFrameThickness=new Thickness(0),CornerRadius=new CornerRadius(0),UseAeroCaptionButtons=false});
+        window.FontFamily = new FontFamily("Microsoft YaHei UI");
+        window.Foreground = Ink;
+        window.FontSize = 13;
+        window.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
+        window.WindowStyle = WindowStyle.None;
+        WindowChrome.SetWindowChrome(window, new WindowChrome { CaptionHeight = 42, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
     }
-    public static UIElement Frame(Window window,UIElement content)
+    public static UIElement Frame(Window window, UIElement content)
     {
-        var root=new Grid();root.RowDefinitions.Add(new RowDefinition{Height=new GridLength(42)});root.RowDefinitions.Add(new RowDefinition());
-        var caption=new DockPanel{Margin=new Thickness(24,0,8,0)};
-        var actions=new StackPanel{Orientation=Orientation.Horizontal};DockPanel.SetDock(actions,Dock.Right);
-        var minimize=new Button{Content="最小化",FontSize=11,Padding=new Thickness(12,4,12,4),MinHeight=28,Background=Brushes.Transparent,BorderThickness=new Thickness(0)};
-        minimize.Click+=(_,_)=>window.WindowState=WindowState.Minimized;
-        var close=new Button{Content="关闭",FontSize=11,Padding=new Thickness(12,4,12,4),MinHeight=28,Background=Brushes.Transparent,BorderThickness=new Thickness(0)};
-        close.Click+=(_,_)=>window.Close();WindowChrome.SetIsHitTestVisibleInChrome(actions,true);actions.Children.Add(minimize);actions.Children.Add(close);caption.Children.Add(actions);
-        caption.Children.Add(new TextBlock{Text="ZestDrop  /  工具",Foreground=Muted,FontSize=11,VerticalAlignment=VerticalAlignment.Center});root.Children.Add(caption);Grid.SetRow(content,1);root.Children.Add(content);return root;
+        var root = new Grid();
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(42) });
+        root.RowDefinitions.Add(new RowDefinition());
+        var caption = new DockPanel { Margin = new Thickness(24, 0, 8, 0) };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal };
+        DockPanel.SetDock(actions, Dock.Right);
+        var minimize = new Button { Content = L.T("最小化"), FontSize = 11, Padding = new Thickness(12, 4, 12, 4), MinHeight = 28, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+        minimize.Click += (_, _) => window.WindowState = WindowState.Minimized;
+        var close = new Button { Content = L.T("关闭"), FontSize = 11, Padding = new Thickness(12, 4, 12, 4), MinHeight = 28, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+        close.Click += (_, _) => window.Close();
+        WindowChrome.SetIsHitTestVisibleInChrome(actions, true);
+        actions.Children.Add(minimize);
+        actions.Children.Add(close);
+        caption.Children.Add(actions);
+        caption.Children.Add(new TextBlock { Text = L.T("ZestDrop  /  工具"), Foreground = Muted, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
+        root.Children.Add(caption);
+        Grid.SetRow(content, 1);
+        root.Children.Add(content);
+        return root;
     }
-    public static Border Card(UIElement content,Thickness padding)=>new(){Child=content,Background=Brushes.White,BorderBrush=new SolidColorBrush(Color.FromRgb(230,232,235)),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Padding=padding};
+    public static Border Card(UIElement content, Thickness padding) => new() { Child = content, Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(230, 232, 235)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = padding };
 }

@@ -32,7 +32,7 @@ def convert(path,fmt,params):
     return state['output']
 
 def tempo(speed):
-    if not .125<=speed<=8: raise ValueError('速度范围为 0.125 到 8 倍')
+    if not .125<=speed<=8: raise ValueError(T('速度范围为 0.125 到 8 倍'))
     factors=[]
     while speed>2: factors.append('atempo=2'); speed/=2
     while speed<.5: factors.append('atempo=0.5'); speed/=.5
@@ -56,12 +56,12 @@ def redact_graph(info,params):
     stream=video_stream(info); regions=rects(params,int(stream['width']),int(stream['height'])); graph=[]; current='0:v'
     for i,r in enumerate(regions):
         start=float(r.get('start',0)); end=float(r.get('end',0)) or duration(info)
-        if start<0 or end<=start: raise ValueError('打码时间范围无效')
+        if start<0 or end<=start: raise ValueError(T('打码时间范围无效'))
         enabled=f"between(t,{start},{end})"; x,y,w,h=(r[k] for k in ('x','y','width','height'))
         output=f'redacted{i}'; style=r.get('style',params.get('style','solid'))
         if style in ('blur','pixelate'):
             block=int(float(r.get('blockSize',params.get('blockSize',18))))
-            if not 2<=block<=100: raise ValueError('马赛克颗粒需在 2–100 像素范围内')
+            if not 2<=block<=100: raise ValueError(T('马赛克颗粒需在 2–100 像素范围内'))
             effect=r'boxblur=luma_radius=min(w\,h)/8:luma_power=2:chroma_radius=min(cw\,ch)/8:chroma_power=2' if style=='blur' else f'scale={max(1,w//block)}:{max(1,h//block)}:flags=area,scale={w}:{h}:flags=neighbor'
             graph += [f'[{current}]split[keep{i}][crop{i}]',f'[crop{i}]crop={w}:{h}:{x}:{y},{effect}[cover{i}]',f"[keep{i}][cover{i}]overlay={x}:{y}:enable='{enabled}'[{output}]"]
         else: graph += [f"[{current}]drawbox=x={x}:y={y}:w={w}:h={h}:color=black:t=fill:enable='{enabled}'[{output}]"]
@@ -73,7 +73,7 @@ def split_video(path,params):
     info=probe(path); total=duration(info)
     raw=params.get('splitPoints','').strip()
     points=sorted(set(float(x.strip()) for x in raw.split(','))) if raw else [total*i/int(number(params,'parts',2)) for i in range(1,int(number(params,'parts',2)))]
-    if any(x<=0 or x>=total for x in points): raise ValueError('分割点必须在视频时间范围内')
+    if any(x<=0 or x>=total for x in points): raise ValueError(T('分割点必须在视频时间范围内'))
     boundaries=[0,*points,total]
     with output_folder(path,'clips') as state:
         for i,(start,end) in enumerate(zip(boundaries,boundaries[1:])):
@@ -84,7 +84,7 @@ def snapshots(path,params):
     info=probe(path); rate=video_stream(info).get('avg_frame_rate','30/1'); a,b=map(float,rate.split('/')); fps=a/b if b and a else 30
     times=params.get('times','').strip()
     values=[float(x.strip()) for x in times.split(',')] if times else [number(params,'time',0)+number(params,'frame',0)/fps]
-    if any(x<0 or x>=duration(info) for x in values): raise ValueError('截图时间超出视频范围')
+    if any(x<0 or x>=duration(info) for x in values): raise ValueError(T('截图时间超出视频范围'))
     if len(values)==1:
         with output_file(path,'snapshot','.png') as state: ffmpeg(['-ss',values[0],'-i',path,'-frames:v','1',state['temp']])
     else:
@@ -118,13 +118,13 @@ def video_tool(path,action,params):
         tail=['-an']; codec=['-c:v','copy']
     elif action=='trimVideo':
         start=number(params,'start',0); end=number(params,'end',0) or duration(info)
-        if start<0 or end<=start or end>duration(info)+.1: raise ValueError('起止时间超出视频范围')
+        if start<0 or end<=start or end>duration(info)+.1: raise ValueError(T('起止时间超出视频范围'))
         args=['-ss',start,'-i',path,'-t',end-start]
     elif action=='cropVideo':
         stream=video_stream(info); x=int(number(params,'x',0)); y=int(number(params,'y',0)); w=int(number(params,'width',int(stream['width'])-x)); h=int(number(params,'height',int(stream['height'])-y))
         ratio=params.get('ratio','free')
         if w>0 and h>0:w,h=fit_ratio(w,h,ratio)
-        if min(w,h)<=0 or x<0 or y<0 or x+w>int(stream['width']) or y+h>int(stream['height']): raise ValueError('裁剪区域超出视频画面')
+        if min(w,h)<=0 or x<0 or y<0 or x+w>int(stream['width']) or y+h>int(stream['height']): raise ValueError(T('裁剪区域超出视频画面'))
         vf.append(f'crop={w}:{h}:{x}:{y}')
     elif action=='changeVideoSpeed':
         speed=number(params,'speed',2); vf.append(f'setpts=PTS/{speed}'); af.append(tempo(speed))
@@ -139,7 +139,7 @@ def video_tool(path,action,params):
             codec=['-c:v','libx264','-b:v',f'{bitrate}k','-maxrate',f'{bitrate}k','-bufsize',f'{bitrate*2}k','-c:a','aac','-b:a',f'{max(8,audio_bitrate)}k','-pix_fmt','yuv420p']; fmt='mp4'
     elif action=='redactVideo':
         args+=['-filter_complex',redact_graph(info,params),'-map','[outv]','-map','0:a?']
-    else: raise ValueError('未知视频工具')
+    else: raise ValueError(T('未知视频工具'))
     if action not in ('muteVideo','redactVideo'): vf.append('pad=ceil(iw/2)*2:ceil(ih/2)*2')
     if vf: args+=['-vf',','.join(vf)]
     if af and any(x['codec_type']=='audio' for x in info['streams']): args+=['-af',','.join(af)]
@@ -151,7 +151,7 @@ def video_tool(path,action,params):
                 if state['temp'].stat().st_size<=target:break
                 bitrate=max(4,int(bitrate*target/state['temp'].stat().st_size*.85));audio_bitrate=max(8,int(audio_bitrate*.8))
                 codec=['-c:v','libx264','-b:v',f'{bitrate}k','-maxrate',f'{bitrate}k','-bufsize',f'{bitrate*2}k','-c:a','aac','-b:a',f'{audio_bitrate}k','-pix_fmt','yuv420p'];ffmpeg([*args,*codec,*tail,state['temp']])
-            if state['temp'].stat().st_size>target:raise ValueError('当前视频无法达到该目标大小，请增大目标或缩小分辨率')
+            if state['temp'].stat().st_size>target:raise ValueError(T('当前视频无法达到该目标大小，请增大目标或缩小分辨率'))
     return state['output']
 
 def audio_tool(path,action,params):
@@ -177,7 +177,7 @@ def audio_tool(path,action,params):
     elif action=='normalizeAudio': filters.append(f"loudnorm=I={number(params,'loudness',-16)}:LRA={number(params,'range',11)}:TP={number(params,'peak',-1.5)}")
     elif action=='trimAudio':
         start=number(params,'start',0); end=number(params,'end',0) or duration(info)
-        if start<0 or end<=start or end>duration(info)+.1: raise ValueError('起止时间超出音频范围')
+        if start<0 or end<=start or end>duration(info)+.1: raise ValueError(T('起止时间超出音频范围'))
         args=['-ss',start,'-i',path,'-t',end-start]
         if truth(params.get('removeSilence','false')): filters+=['silenceremove=start_periods=1:start_threshold=-40dB','areverse','silenceremove=start_periods=1:start_threshold=-40dB','areverse']
     elif action=='audioChannels':
@@ -190,12 +190,12 @@ def audio_tool(path,action,params):
             with output_file(path,action,'.'+fmt) as state: ffmpeg(['-i',path,'-vn',*audio_args(fmt,params),state['temp']])
             return state['output']
         expression='+'.join(f'between(t,{float(r["start"])},{float(r["end"])})' for r in ranges)
-        if any(float(r['start'])<0 or float(r['end'])<=float(r['start']) or float(r['end'])>duration(info)+.1 for r in ranges): raise ValueError('消音时间范围无效')
+        if any(float(r['start'])<0 or float(r['end'])<=float(r['start']) or float(r['end'])>duration(info)+.1 for r in ranges): raise ValueError(T('消音时间范围无效'))
         graph=f"[0:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0:enable='{expression}'[speech];sine=frequency=1000:sample_rate=48000:duration={duration(info)},aformat=channel_layouts=stereo,volume='if({expression},0.15,0)':eval=frame[beep];[speech][beep]amix=inputs=2:normalize=0[a]"
         args+=['-filter_complex',graph,'-map','[a]']
-    else: raise ValueError('未知音频工具')
+    else: raise ValueError(T('未知音频工具'))
     if filters: args+=['-af',','.join(filters)]
     with output_file(path,action,'.'+fmt) as state:
         ffmpeg([*args,'-vn',*audio_args(fmt,params),state['temp']])
-        if action=='compress' and number(params,'targetKB',0) and state['temp'].stat().st_size>number(params,'targetKB')*1024:raise ValueError('该音频在当前格式下无法达到目标大小，请增大目标或选择有损格式')
+        if action=='compress' and number(params,'targetKB',0) and state['temp'].stat().st_size>number(params,'targetKB')*1024:raise ValueError(T('该音频在当前格式下无法达到目标大小，请增大目标或选择有损格式'))
     return state['output']

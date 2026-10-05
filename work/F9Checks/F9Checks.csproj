@@ -2,6 +2,8 @@
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
   <ItemGroup>
     <Compile Include="../ZestDrop/Models.cs" Link="Models.cs"/>
+    <Compile Include="../ZestDrop/Strings.cs" Link="Strings.cs"/>
+    <Compile Include="../ZestDrop/StringsEn.cs" Link="StringsEn.cs"/>
     <Compile Include="../ZestDrop/Catalog.cs" Link="Catalog.cs"/>
     <Compile Include="../ZestDrop/JobValidation.cs" Link="JobValidation.cs"/>
     <Compile Include="../ZestDrop/OfficeBridge.cs" Link="OfficeBridge.cs"/>

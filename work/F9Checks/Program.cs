@@ -1,6 +1,7 @@
 using ZestDrop;
 using System.Text.Json;
 
+L.UseForSession("zh"); // assertions use Chinese messages; never touch the saved choice
 var checks=new List<object>();int failed=0;
 void Check(string name,Action body)
 {

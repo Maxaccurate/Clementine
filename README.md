@@ -8,9 +8,9 @@ A Windows desktop file conversion utility that runs in the system tray. Drag fil
 
 ## Download
 
-Download the [v0.1.1 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v0.1.1/ZestDrop-v0.1.1-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
+Download the [v0.1.0 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v0.1.0/ZestDrop-v0.1.0-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
 
-See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v0.1.1) for requirements and known limitations.
+See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v0.1.0) for requirements and known limitations.
 
 ## Screenshots
 
@@ -43,9 +43,13 @@ See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/rel
 2. Press **Shift** while dragging, move onto the desired format in the floating menu, and release the mouse button.
 3. Press **Ctrl+Shift** while dragging to choose a tool instead. Tools that need settings open a dedicated tool window.
 
-Once the menu appears, you can release the keyboard keys while continuing to hold the mouse button. Pressing Ctrl while Shift is held switches the conversion menu to tools. **F8** and **F9** remain available as alternative shortcuts. Modifier shortcuts activate for drags started on the desktop or in File Explorer.
+Once the menu appears, you can release the keyboard keys while continuing to hold the mouse button. Pressing Ctrl while Shift is held switches the conversion menu to tools. While dragging, **F8** (formats) and **F9** (tools) open the same menu, including for drags started in other apps. They are not registered as global hotkeys, so other applications still receive F8/F9 when you are not dragging. Shift and Ctrl+Shift activate for drags started on the desktop or in File Explorer.
 
-Outputs are saved alongside the originals. Existing files are preserved, and duplicate output names receive a numeric suffix. Press **Esc** to dismiss the floating menu. Right-click the tray icon to cancel the current task, open the latest output location, or quit.
+The interface is available in English and Simplified Chinese. It follows your Windows display language at first; change it any time from the tray icon menu (Language / 语言). The choice is saved in `%LOCALAPPDATA%\ZestDrop\settings.json`.
+
+Background jobs appear as a stack of progress cards in the corner of the screen, oldest at the top. Each card has **Pause / Resume** (suspends the whole job, including FFmpeg, and continues exactly where it stopped), **Cancel** (stops the job and removes its unfinished files) and **Hide** (the job keeps running; show it again from the tray menu). With two or more jobs a header lets you **Collapse** the cards into one pile, **Expand** them again, or **Hide all**. Two jobs run at once; the rest wait their turn, and a paused job gives up its place.
+
+Outputs are saved alongside the originals. Existing files are preserved, and duplicate output names receive a numeric suffix. Press **Esc** to dismiss the floating menu. Right-click the tray icon to cancel the current task, open the latest output location, or quit. Jobs have no fixed time limit; cancelling removes any partially written output. Logs are kept in `%LOCALAPPDATA%ZestDropogs`.
 
 Supported categories include images, video, audio, documents, and archives. Tools cover image adjustments, backgrounds, cropping and pixelation; video trimming, speed changes, joining and frame capture; audio loudness, channels and beep redaction; PDF page management; and Office document export. Image and video cropping support custom aspect ratios. Progress indicators show the current stage, elapsed time, and actual processed counts for batch jobs.
 
@@ -110,6 +114,14 @@ After preparing the runtime and building the application, run backend checks wit
 ./outputs/ZestDrop/runtime/python/python.exe work/test-app-cli.py
 ./outputs/ZestDrop/runtime/python/python.exe work/test-f9-refinements.py
 ./outputs/ZestDrop/runtime/python/python.exe work/test-progress.py
+./outputs/ZestDrop/runtime/python/python.exe work/test-i18n.py
+```
+
+To also pause and resume a real FFmpeg conversion inside the C# checks, point them at the built application first:
+
+```powershell
+$env:ZESTDROP_APP = (Resolve-Path ./outputs/ZestDrop).Path
+dotnet run --project work/ProgressChecks -- outputs/progress-ui-tests.json
 ```
 
 Run the full backend checks first to generate shared test fixtures. Office checks require the corresponding desktop Office applications; run `test-office.py` followed by `test-office-extra.py`. See the [validation summary](docs/validation.md) (Chinese). These records do not establish coverage of every computer, DPI setting, or manual interaction.

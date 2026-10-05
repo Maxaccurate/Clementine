@@ -13,6 +13,7 @@ internal static class Checks
 {
     [STAThread]public static int Main(string[] args)
     {
+        L.UseForSession("zh"); // assertions below use Chinese text; never touch the saved choice
         var checks=new List<object>();int failed=0;
         void Check(string name,Action action){try{action();checks.Add(new{test=name,passed=true});}catch(Exception ex){failed++;checks.Add(new{test=name,passed=false,error=ex.Message});}}
         void Require(bool value){if(!value)throw new Exception("Unexpected progress result");}
@@ -91,7 +92,276 @@ internal static class Checks
         {
             var view=new ActivityIndicator();var session=view.Begin("处理中","a");view.Complete("处理完成","result.png");session.Report(new JobProgress("processing",0,1,"a"));session.Dispose();Require(view.Visibility==Visibility.Visible&&view.Children.OfType<TextBlock>().First().Text=="处理完成");
         });
+        Check("temp sweep removes only staging entries created after the job started",()=>
+        {
+            string root=Path.Combine(Path.GetTempPath(),"zestdrop-sweep-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
+            try
+            {
+                string input=Path.Combine(root,"clip.mp4"),older=Path.Combine(root,".zestdrop-older.mp4"),user=Path.Combine(root,"notes.txt");
+                File.WriteAllText(input,"x");File.WriteAllText(older,"x");
+                var sweep=new TempSweep([input]);
+                string partial=Path.Combine(root,".zestdrop-partial.mp4"),folder=Path.Combine(root,".zestdrop-abc");
+                File.WriteAllText(partial,"x");Directory.CreateDirectory(folder);File.WriteAllText(Path.Combine(folder,"frame-0001.png"),"x");File.WriteAllText(user,"x");
+                sweep.Run().GetAwaiter().GetResult();
+                Require(!File.Exists(partial)&&!Directory.Exists(folder)&&File.Exists(older)&&File.Exists(input)&&File.Exists(user));
+            }
+            finally{Directory.Delete(root,true);}
+        });
+        Check("temp sweep retries while a killed encoder still holds the file",()=>
+        {
+            string root=Path.Combine(Path.GetTempPath(),"zestdrop-sweep-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
+            try
+            {
+                string input=Path.Combine(root,"clip.mp4");File.WriteAllText(input,"x");var sweep=new TempSweep([input]);
+                string partial=Path.Combine(root,".zestdrop-locked.mp4");var handle=new FileStream(partial,FileMode.CreateNew,FileAccess.Write,FileShare.None);
+                var release=new Timer(_=>handle.Dispose(),null,500,Timeout.Infinite);
+                sweep.Run().GetAwaiter().GetResult();release.Dispose();
+                Require(!File.Exists(partial)&&File.Exists(input));
+            }
+            finally{Directory.Delete(root,true);}
+        });
+        Check("pausing a progress session shows 已暂停 and resuming restores the stage", () =>
+        {
+            var view = new ActivityIndicator();
+            var session = view.Begin("正在转换格式", "a.png");
+            var heading = (TextBlock)view.Children[0];
+            session.SetPaused(true);
+            Require(heading.Text == "已暂停");
+            session.SetPaused(false);
+            Require(heading.Text == "正在转换格式");
+        });
+        Check("a waiting job explains it starts after the jobs ahead of it", () =>
+        {
+            var card = new JobCard(new ConversionJob(["a.mp4"], "convert:webm"));
+            var texts = Texts(card);
+            Require(card.State == JobState.Waiting && texts.Contains("等待处理") && texts.Contains("前面的任务完成后开始"));
+            card.Start();
+            Require(card.State == JobState.Running && Texts(card).Contains("正在转换格式"));
+        });
+        Check("one job shows a single card and no stack header", () =>
+        {
+            var stack = new TaskIndicatorWindow(headless: true);
+            stack.Add(new ConversionJob(["B&W"], "pack:zip")).Start();
+            Require(stack.ShouldShow && !stack.HeaderVisible && stack.VisibleCards.Count() == 1);
+        });
+        Check("several jobs stack top to bottom, oldest first, with a summary header", () =>
+        {
+            var stack = new TaskIndicatorWindow(headless: true);
+            var a = stack.Add(new ConversionJob(["a.mp4"], "convert:webm"));
+            var b = stack.Add(new ConversionJob(["b.mp4"], "convert:webm"));
+            var c = stack.Add(new ConversionJob(["c.mp4"], "convert:webm"));
+            a.Start();
+            stack.Update();
+            Require(stack.HeaderVisible && stack.VisibleCards.SequenceEqual(new[] { a, b, c }));
+            Require(stack.HeaderText == "3 个任务 · 进行中 1 · 等待 2");
+        });
+        Check("collapsing piles the stack under the newest running job; expanding lists all again", () =>
+        {
+            var stack = new TaskIndicatorWindow(headless: true);
+            var a = stack.Add(new ConversionJob(["a.mp4"], "convert:webm"));
+            var b = stack.Add(new ConversionJob(["b.mp4"], "convert:webm"));
+            stack.Add(new ConversionJob(["c.mp4"], "convert:webm"));
+            a.Start(); b.Start(); b.SetPaused(true); stack.Update();
+            stack.SetExpanded(false);
+            Require(stack.VisibleCards.SequenceEqual(new[] { a }));
+            stack.SetExpanded(true);
+            Require(stack.VisibleCards.Count() == 3);
+        });
+        Check("hiding one card keeps the others and the header counts it; show all brings it back", () =>
+        {
+            var stack = new TaskIndicatorWindow(headless: true);
+            var a = stack.Add(new ConversionJob(["a.mp4"], "convert:webm"));
+            var b = stack.Add(new ConversionJob(["b.mp4"], "convert:webm"));
+            a.Start(); b.Start();
+            stack.HideCard(a);
+            Require(stack.VisibleCards.SequenceEqual(new[] { b }) && stack.HeaderText.Contains("已隐藏 1"));
+            stack.ShowAll();
+            Require(stack.VisibleCards.Count() == 2);
+        });
+        Check("hide all stays hidden for new jobs until the stack empties", () =>
+        {
+            var stack = new TaskIndicatorWindow(headless: true);
+            var a = stack.Add(new ConversionJob(["a.mp4"], "convert:webm"));
+            stack.HideAll();
+            var b = stack.Add(new ConversionJob(["b.mp4"], "convert:webm"));
+            Require(!stack.ShouldShow);
+            Require(!stack.Finish(a, "处理完成", "a.webm") && !stack.Finish(b, "处理完成", "b.webm"));
+            Require(stack.Cards.Count == 0 && !stack.AllHidden);
+            stack.Add(new ConversionJob(["c.mp4"], "convert:webm"));
+            Require(stack.ShouldShow);
+        });
+        Check("a finished visible card shows its result; a finished hidden card is removed and reported", () =>
+        {
+            var stack = new TaskIndicatorWindow(headless: true);
+            var a = stack.Add(new ConversionJob(["a.mp4"], "convert:webm"));
+            var b = stack.Add(new ConversionJob(["b.mp4"], "convert:webm"));
+            stack.HideCard(b);
+            Require(stack.Finish(a, "处理完成", "a.webm") && stack.Cards.Contains(a) && a.State == JobState.Done && Texts(a).Contains("a.webm"));
+            Require(!stack.Finish(b, "处理完成", "b.webm") && !stack.Cards.Contains(b));
+        });
+        Check("cancelling one job never removes another job's staging files in the same folder", () =>
+        {
+            string root = Path.Combine(Path.GetTempPath(), "zestdrop-sweep-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string input = Path.Combine(root, "clip.mp4");
+                File.WriteAllText(input, "x");
+                var sweepA = new TempSweep([input], "aaaa");
+                string mine = Path.Combine(root, ".zestdrop-aaaa-1.webm"), theirs = Path.Combine(root, ".zestdrop-bbbb-1.webm");
+                File.WriteAllText(mine, "x");
+                File.WriteAllText(theirs, "x");
+                sweepA.Run().GetAwaiter().GetResult();
+                Require(!File.Exists(mine) && File.Exists(theirs) && File.Exists(input));
+            }
+            finally { Directory.Delete(root, true); }
+        });
+        Check("pausing freezes a whole process tree and resuming continues it", () =>
+        {
+            string output = Path.Combine(Path.GetTempPath(), "zestdrop-pause-" + Guid.NewGuid().ToString("N") + ".txt");
+            // cmd starts ping as a child; ping writes one line per second, so the file only grows while both run.
+            var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c ping -n 40 127.0.0.1 > \"{output}\"") { CreateNoWindow = true, UseShellExecute = false })!;
+            try
+            {
+                Thread.Sleep(2500);
+                long before = new FileInfo(output).Length;
+                Require(before > 0);
+                using (var pause = ProcessTreePause.Suspend(process))
+                {
+                    Require(pause.Count >= 2);
+                    long frozen = new FileInfo(output).Length;
+                    Thread.Sleep(3000);
+                    Require(new FileInfo(output).Length == frozen);
+                    pause.Resume();
+                    Thread.Sleep(3000);
+                    Require(new FileInfo(output).Length > frozen);
+                }
+            }
+            finally
+            {
+                try { process.Kill(true); process.WaitForExit(5000); } catch (InvalidOperationException) { }
+                try { File.Delete(output); } catch (IOException) { }
+            }
+        });
+        Check("a paused tree can be cancelled directly", () =>
+        {
+            var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c ping -n 40 127.0.0.1 > nul") { CreateNoWindow = true, UseShellExecute = false })!;
+            Thread.Sleep(800);
+            using var pause = ProcessTreePause.Suspend(process);
+            process.Kill(true);
+            Require(process.WaitForExit(5000));
+        });
+        Check("every interface string used in the app has an English translation", () =>
+        {
+            // Scan the app's sources for L.T("…") / L.F("…") keys.
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "ZestDrop", "backend")))
+                dir = dir.Parent;
+            Require(dir != null);
+            var missing = new List<string>();
+            foreach (var file in Directory.GetFiles(Path.Combine(dir!.FullName, "ZestDrop"), "*.cs"))
+                foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(file), "L\\.[TF]\\(\"((?:[^\"\\\\]|\\\\.)*)\""))
+                {
+                    string key = JsonSerializer.Deserialize<string>("\"" + m.Groups[1].Value + "\"")!;
+                    if (!L.Translations.ContainsKey(key))
+                        missing.Add(Path.GetFileName(file) + ": " + key);
+                }
+            if (missing.Count > 0)
+                throw new Exception("Missing English: " + string.Join(" | ", missing.Distinct()));
+        });
+        Check("English format strings use only placeholders the code supplies", () =>
+        {
+            foreach (var (key, english) in L.Translations.Where(t => System.Text.RegularExpressions.Regex.IsMatch(t.Key, @"\{\d")))
+            {
+                int Max(string text) => System.Text.RegularExpressions.Regex.Matches(text, "\\{(\\d+)").Select(m => int.Parse(m.Groups[1].Value)).DefaultIfEmpty(-1).Max();
+                int supplied = Max(key) + 1 + (key == " 等 {0} 项" ? 1 : 0); // that key passes an extra count for English
+                if (Max(english) >= supplied)
+                    throw new Exception($"'{english}' needs more values than '{key}' gets");
+                _ = string.Format(english, Enumerable.Repeat((object)1, Math.Max(supplied, 1)).ToArray());
+            }
+        });
+        Check("switching to English relabels cards, the stack header and the wheel", () =>
+        {
+            try
+            {
+                L.UseForSession("en");
+                var stack = new TaskIndicatorWindow(headless: true);
+                var a = stack.Add(new ConversionJob(["a.mp4", "b.mp4", "c.mp4"], "convert:webm"));
+                stack.Add(new ConversionJob(["d.mp4"], "pack:zip"));
+                a.Start();
+                stack.Update();
+                var texts = Texts(a);
+                Require(texts.Contains("Converting") && texts.Contains("a.mp4 and 2 more") && stack.HeaderText == "2 jobs · running 1 · waiting 1");
+                var labels = Catalog.Options([Path.Combine(Path.GetTempPath(), "x.png")], true).Select(o => o.Label).ToList();
+                Require(labels.Count == 0 || labels.Contains("Compress"));
+                Require(Catalog.Definition("trimVideo", "video").Label == "Trim" && JobValidationMessage().Contains("must be"));
+                L.UseForSession("zh");
+                stack.Relabel();
+                Require(Texts(a).Contains("正在转换格式") && Texts(a).Contains("a.mp4 等 3 项") && stack.HeaderText.StartsWith("2 个任务"));
+            }
+            finally { L.UseForSession("zh"); }
+        });
+        // End to end with the real worker and FFmpeg. Needs the portable runtime: set ZESTDROP_APP to outputs/ZestDrop.
+        string? app = Environment.GetEnvironmentVariable("ZESTDROP_APP");
+        if (app != null) Check("a real conversion pauses mid-encode, resumes, and still produces a valid file", () =>
+        {
+            string root = Path.Combine(Path.GetTempPath(), "zestdrop-e2e-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            void Must(bool ok, string what) { if (!ok) throw new Exception(what); }
+            // The directory listing lags while FFmpeg writes, so read the live size through a handle.
+            static long Live(string path) { using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete); return stream.Length; }
+            System.Diagnostics.Process? worker = null;
+            try
+            {
+                string ffmpeg = Path.Combine(app, "runtime", "ffmpeg", "ffmpeg.exe"), source = Path.Combine(root, "clip.mp4");
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ffmpeg, $"-hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=30:duration=25 -c:v libx264 -preset ultrafast \"{source}\"") { CreateNoWindow = true, UseShellExecute = false })!.WaitForExit(60000);
+                Must(File.Exists(source), "source video was not created");
+                string request = Path.Combine(root, "request.json"), response = Path.Combine(root, "result.json");
+                File.WriteAllText(request, JsonSerializer.Serialize(new ConversionJob([source], "convert:webm")));
+                var start = new System.Diagnostics.ProcessStartInfo(Path.Combine(app, "runtime", "python", "python.exe")) { CreateNoWindow = true, UseShellExecute = false };
+                foreach (var arg in new[] { Path.Combine(app, "backend", "worker.py"), "--job", request, response })
+                    start.ArgumentList.Add(arg);
+                start.Environment["ZESTDROP_JOB"] = "e2etoken";
+                worker = System.Diagnostics.Process.Start(start)!;
+                string? staging = null;
+                for (int i = 0; i < 300 && staging == null; i++)
+                {
+                    Thread.Sleep(100);
+                    staging = Directory.GetFiles(root, ".zestdrop-e2etoken-*").FirstOrDefault(f => Live(f) > 0);
+                }
+                Must(staging != null, "no tagged staging file appeared"); // the job tags its staging file with its own id
+                using (var pause = ProcessTreePause.Suspend(worker))
+                {
+                    Must(pause.Count >= 2, "pause did not catch python + ffmpeg"); // python + ffmpeg
+                    long frozen = Live(staging!);
+                    Thread.Sleep(3000);
+                    Must(Live(staging!) == frozen && !worker.HasExited, "staging file grew while paused (or worker died)");
+                }
+                Must(worker.WaitForExit(180000) && worker.ExitCode == 0, "worker failed after resume");
+                using var result = JsonDocument.Parse(File.ReadAllText(response));
+                var file = result.RootElement.GetProperty("Files")[0];
+                string? output = file.GetProperty("Output").GetString();
+                Must(output != null && new FileInfo(output).Length > 10000 && !Directory.GetFiles(root, ".zestdrop-*").Any(), "bad output or leftover staging files");
+            }
+            finally
+            {
+                try { if (worker is { HasExited: false }) worker.Kill(true); } catch (InvalidOperationException) { }
+                try { Directory.Delete(root, true); } catch (IOException) { }
+            }
+        });
         File.WriteAllText(args[0],JsonSerializer.Serialize(new{passed=checks.Count-failed,failed,checks},new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine($"passed={checks.Count-failed}, failed={failed}");return failed==0?0:1;
+    }
+    private static string JobValidationMessage()
+    {
+        try { JobValidation.Check(new ConversionJob(["a.mp4"], "trimVideo", new Dictionary<string, string> { ["start"] = "5", ["end"] = "2" }), 0, 0, 10); return ""; }
+        catch (ArgumentException ex) { return ex.Message; }
+    }
+    private static List<string> Texts(DependencyObject root)
+    {
+        var found = new List<string>();
+        if (root is TextBlock text) found.Add(text.Text);
+        foreach (var child in LogicalTreeHelper.GetChildren(root)) if (child is DependencyObject node) found.AddRange(Texts(node));
+        return found;
     }
     private sealed class Reporter(Action<JobProgress> callback):IProgress<JobProgress>{public void Report(JobProgress value)=>callback(value);}
 }

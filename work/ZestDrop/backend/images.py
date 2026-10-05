@@ -65,7 +65,7 @@ def crop(image,params):
     w=int(number(params,'width',image.width-x)); h=int(number(params,'height',image.height-y))
     ratio=params.get('ratio','free')
     if w>0 and h>0:w,h=fit_ratio(w,h,ratio)
-    if x<0 or y<0 or w<=0 or h<=0 or x+w>image.width or y+h>image.height: raise ValueError('裁剪区域超出图片范围')
+    if x<0 or y<0 or w<=0 or h<=0 or x+w>image.width or y+h>image.height: raise ValueError(T('裁剪区域超出图片范围'))
     return image.crop((x,y,x+w,y+h))
 
 def redact(image,params):
@@ -76,7 +76,7 @@ def redact(image,params):
         if style=='blur': region=region.filter(ImageFilter.GaussianBlur(max(8,min(region.size)/12)))
         elif style=='pixelate':
             block=int(float(r.get('blockSize',params.get('blockSize',18))))
-            if not 2<=block<=100: raise ValueError('马赛克颗粒需在 2–100 像素范围内')
+            if not 2<=block<=100: raise ValueError(T('马赛克颗粒需在 2–100 像素范围内'))
             region=region.resize((max(1,region.width//block),max(1,region.height//block)),Image.Resampling.BOX).resize(region.size,Image.Resampling.NEAREST)
         else: region=Image.new(image.mode,region.size,params.get('color','#000000'))
         image.paste(region,box[:2])
@@ -84,7 +84,7 @@ def redact(image,params):
 
 def framed(image,params):
     w=int(number(params,'canvasWidth',1400)); h=int(number(params,'canvasHeight',1000))
-    if w<1 or h<1 or w*h>40_000_000: raise ValueError('画布尺寸无效或过大')
+    if w<1 or h<1 or w*h>40_000_000: raise ValueError(T('画布尺寸无效或过大'))
     background=params.get('backgroundImage','')
     if background: canvas=ImageOps.fit(open_image(background).convert('RGB'),(w,h)).convert('RGBA')
     else:
@@ -94,7 +94,7 @@ def framed(image,params):
             other=Image.new('RGBA',(w,h),second); mask=Image.linear_gradient('L').resize((w,h)); canvas=Image.composite(other,canvas,mask)
     if number(params,'backgroundBlur',0): canvas=canvas.filter(ImageFilter.GaussianBlur(number(params,'backgroundBlur',0)))
     padding=int(number(params,'padding',80)); inner=(w-2*padding,h-2*padding)
-    if min(inner)<1: raise ValueError('留白大于画布')
+    if min(inner)<1: raise ValueError(T('留白大于画布'))
     image=ImageOps.contain(image.convert('RGBA'),inner)
     radius=int(number(params,'radius',24)); mask=Image.new('L',image.size,0)
     ImageDraw.Draw(mask).rounded_rectangle((0,0,image.width,image.height),radius=radius,fill=255)
@@ -109,7 +109,7 @@ def framed(image,params):
 
 def collage(paths,params,preview=False):
     w=int(number(params,'canvasWidth',1600)); h=int(number(params,'canvasHeight',1200)); gap=int(number(params,'gap',16)); layout=params.get('layout','grid')
-    if w*h>40_000_000 or min(w,h)<1: raise ValueError('拼图画布尺寸无效')
+    if w*h>40_000_000 or min(w,h)<1: raise ValueError(T('拼图画布尺寸无效'))
     canvas=Image.new('RGBA',(w,h),params.get('background','#ffffff'))
     n=len(paths); cols=n if layout=='row' else 1 if layout=='column' else int(number(params,'columns',0)) or math.ceil(math.sqrt(n))
     cols=max(1,cols); rows=math.ceil(n/cols)
@@ -117,7 +117,7 @@ def collage(paths,params,preview=False):
         boxes=[(gap,gap,w//2-gap,h-gap)]+[(w//2+gap,gap+i*(h-gap)//(n-1),w-gap,gap+(i+1)*(h-gap)//(n-1)-gap) for i in range(n-1)]
     else:
         cw=(w-gap*(cols+1))//cols; ch=(h-gap*(rows+1))//rows
-        if min(cw,ch)<1: raise ValueError('图片太多或间距过大')
+        if min(cw,ch)<1: raise ValueError(T('图片太多或间距过大'))
         boxes=[(gap+(i%cols)*(cw+gap),gap+(i//cols)*(ch+gap),gap+(i%cols)*(cw+gap)+cw,gap+(i//cols)*(ch+gap)+ch) for i in range(n)]
     for path,box in zip(paths,boxes):
         image=ImageOps.fit(open_image(path).convert('RGBA'),(box[2]-box[0],box[3]-box[1]))
@@ -141,7 +141,7 @@ def tool(path,action,params):
         max_edge=int(number(params,'maxEdge',0))
         if max_edge>0: image.thumbnail((max_edge,max_edge),Image.Resampling.LANCZOS)
     elif action=='removeMetadata': pass
-    else: raise ValueError('未知图片工具')
+    else: raise ValueError(T('未知图片工具'))
     exif=None
     if action=='removeMetadata' and not truth(params.get('remove','true')):
         exif=image.getexif()
@@ -168,6 +168,6 @@ def tool(path,action,params):
                     if state['temp'].stat().st_size<=target: best=q; break
                 if best is not None: break
                 image=image.resize((max(1,int(image.width*.8)),max(1,int(image.height*.8))),Image.Resampling.LANCZOS)
-            else: raise ValueError('无法达到目标文件大小，请增大目标或缩小尺寸')
+            else: raise ValueError(T('无法达到目标文件大小，请增大目标或缩小尺寸'))
         else: save_image(image,state['temp'],fmt,quality,exif)
     return state['output']

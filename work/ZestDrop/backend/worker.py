@@ -20,7 +20,7 @@ def one(path,action,params):
     if kind=='video': return media.video_tool(path,action,params)
     if kind=='audio': return media.audio_tool(path,action,params)
     if kind=='document': return documents.tool(path,action,params)
-    raise ValueError('此文件不支持所选工具')
+    raise ValueError(T('此文件不支持所选工具'))
 
 def execute(job,result_path):
     paths=job['Paths']; action=job['Action']; params=job.get('Parameters') or {}
@@ -28,8 +28,10 @@ def execute(job,result_path):
     grouped=action.startswith('pack:') or action in ('createPDF','createCollage','mergePDF','joinVideos','officeMergePDF') or action.startswith('convert:') and len(paths)>1 and all(category(p)=='archive' and Path(p).suffix.lower() not in ('.zip','.tar','.gz','.tgz','.rar') for p in paths)
     total=1 if grouped else len(paths)
     def progress(phase,processed,current=None):
+        # Progress is best-effort: the app may be reading the file at the moment we replace it.
         target=Path(str(result_path)+'.progress');temp=Path(str(target)+'.tmp')
-        temp.write_text(json.dumps({'Phase':phase,'Processed':processed,'Total':total,'Current':current},ensure_ascii=False),encoding='utf8');temp.replace(target)
+        try:temp.write_text(json.dumps({'Phase':phase,'Processed':processed,'Total':total,'Current':current},ensure_ascii=False),encoding='utf8');temp.replace(target)
+        except OSError:pass
     progress('processing',0,Path(paths[0]).name)
     if grouped:
         try:
@@ -97,7 +99,7 @@ def playback(path,action,params,folder):
     if action=='preview-original' and truth(params.get('fullPreview','false')):start=0;length=duration(info)
     if action in ('trimAudio','trimVideo'):
         first=number(params,'start',0);last=number(params,'end',0) or duration(info)
-        if first<0 or last<=first or last>duration(info)+.1:raise ValueError('起止时间超出文件范围')
+        if first<0 or last<=first or last>duration(info)+.1:raise ValueError(T('起止时间超出文件范围'))
         start=max(first,min(start,last-.001));length=min(30,last-start)
     if kind=='audio' and action=='audioToVideo':
         target=folder/'playback.mp4';w,h={'landscape':(1280,720),'portrait':(720,1280),'square':(1080,1080)}[params.get('aspect','landscape')]
@@ -163,7 +165,7 @@ if __name__=='__main__':
             request=json.loads(Path(sys.argv[2]).read_text(encoding='utf-8-sig'));path=request['Paths'][0];action=request['Action'];params=request.get('Parameters') or {}
             value=analyze(path,params) if mode=='--analyze' else frame_step(path,params) if mode=='--frame-step' else playback(path,action,params,sys.argv[4]) if mode=='--playback' else preview(path,action,params,sys.argv[4],request['Paths'])
             Path(sys.argv[3]).write_text(json.dumps(value),encoding='utf8')
-        else: raise ValueError('未知处理模式')
+        else: raise ValueError(T('未知处理模式'))
     except Exception as error:
         if len(sys.argv)>3: Path(sys.argv[3]).write_text(json.dumps({'Error':str(error)},ensure_ascii=False),encoding='utf8')
         sys.exit(1)

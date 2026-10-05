@@ -7,7 +7,7 @@ from common import *
 
 def reader(path,params):
     doc=PdfReader(path)
-    if doc.is_encrypted and not doc.decrypt(params.get('password','')): raise ValueError('PDF 需要正确的密码')
+    if doc.is_encrypted and not doc.decrypt(params.get('password','')): raise ValueError(T('PDF 需要正确的密码'))
     return doc
 
 def metadata(path):
@@ -34,21 +34,26 @@ def images_document(paths,fmt,params):
             doc.save(state['temp'])
     return state['output']
 
+def render_page(page):
+    # 300 DPI, reduced for oversized pages so the bitmap stays within the same 80 MP limit as images.
+    width,height=page.get_size(); scale=min(300/72,.999*(80_000_000/max(1,width*height))**.5)
+    return page.render(scale=scale).to_pil()
+
 def render_pdf(path,fmt,params):
     doc=pdfium.PdfDocument(str(path),password=params.get('password') or None)
     if len(doc)==1:
         with output_file(path,'page-1','.'+fmt) as state:
-            image=doc[0].render(scale=300/72).to_pil(); save_image(image,state['temp'],fmt,92)
+            image=render_page(doc[0]); save_image(image,state['temp'],fmt,92)
     else:
         with output_folder(path,'pages-'+fmt) as state:
             for index in range(len(doc)):
-                image=doc[index].render(scale=300/72).to_pil(); save_image(image,state['temp']/f'page-{index+1:04d}.{fmt}',fmt,92)
+                image=render_page(doc[index]); save_image(image,state['temp']/f'page-{index+1:04d}.{fmt}',fmt,92)
     doc.close(); return state['output']
 
 def pdf_word(path,params):
     import pymupdf as fitz
     doc=fitz.open(path)
-    if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError('PDF 密码错误')
+    if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError(T('PDF 密码错误'))
     with output_file(path,'converted','.docx') as state:
         if any(page.get_text().strip() for page in doc):
             from pdf2docx import Converter
@@ -76,7 +81,7 @@ def text_image(text,width=1200):
             else: current+=char
         lines.append(current)
     height=max(180,100+len(lines)*42)
-    if width*height>80_000_000: raise ValueError('文本过长，单张图片过大；请选择 PDF 输出')
+    if width*height>80_000_000: raise ValueError(T('文本过长，单张图片过大；请选择 PDF 输出'))
     image=Image.new('RGB',(width,height),'white'); draw=ImageDraw.Draw(image)
     for i,line in enumerate(lines): draw.text((50,50+i*42),line,fill='#111111',font=font)
     return image
@@ -131,7 +136,7 @@ def convert(path,fmt,params):
         if fmt=='docx': return pdf_word(path,params)
         if fmt=='txt':
             doc=reader(path,params); text='\n\n'.join(page.extract_text() or '' for page in doc.pages)
-            if not text.strip(): raise ValueError('PDF 没有可选文字；扫描件需先识别文字')
+            if not text.strip(): raise ValueError(T('PDF 没有可选文字；扫描件需先识别文字'))
             with output_file(path,'converted','.txt') as state: state['temp'].write_text(text,encoding='utf8')
             return state['output']
     if source=='.txt':
@@ -139,7 +144,7 @@ def convert(path,fmt,params):
         if fmt=='pdf': return text_pdf(path,text,params)
         with output_file(path,'converted','.'+fmt) as state: save_image(text_image(text),state['temp'],fmt)
         return state['output']
-    raise ValueError('不支持此文档转换')
+    raise ValueError(T('不支持此文档转换'))
 
 def merge(paths,params):
     writer=PdfWriter()
@@ -152,7 +157,7 @@ def tool(path,action,params):
     if action=='compress':
         import pymupdf as fitz
         doc=fitz.open(path)
-        if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError('PDF 密码错误')
+        if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError(T('PDF 密码错误'))
         quality=int(number(params,'quality',75)); edge=int(number(params,'maxEdge',2000)); target=int(number(params,'targetKB',0)*1024)
         seen=set()
         for page in doc:
@@ -168,12 +173,12 @@ def tool(path,action,params):
                 except (OSError,ValueError): pass
         with output_file(path,'compressed','.pdf') as state:
             doc.save(state['temp'],garbage=4,deflate=True)
-            if target and state['temp'].stat().st_size>target: raise ValueError('无法在当前设置下达到目标大小，请调低质量或缩小尺寸')
+            if target and state['temp'].stat().st_size>target: raise ValueError(T('无法在当前设置下达到目标大小，请调低质量或缩小尺寸'))
         doc.close(); return state['output']
     doc=reader(path,params)
     if action=='splitPDF':
         group=int(number(params,'pagesPerFile',1))
-        if group<1: raise ValueError('每份页数必须大于零')
+        if group<1: raise ValueError(T('每份页数必须大于零'))
         with output_folder(path,'split') as state:
             for start in range(0,len(doc.pages),group):
                 writer=PdfWriter()
@@ -186,7 +191,7 @@ def tool(path,action,params):
     indexes=[int(x.strip())-1 for x in order.split(',')] if order else list(range(len(doc.pages)))
     rotations=json.loads(params.get('rotations','{}'))
     for index in indexes:
-        if index<0 or index>=len(doc.pages): raise ValueError('页码超出文档范围')
+        if index<0 or index>=len(doc.pages): raise ValueError(T('页码超出文档范围'))
         page=writer.add_page(doc.pages[index])
         angle=int(rotations.get(str(index+1),number(params,'rotation',0)))
         if angle: page.rotate(angle)
