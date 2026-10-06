@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Text.Json;
 
 namespace ZestDrop;
 
@@ -10,7 +8,6 @@ namespace ZestDrop;
 // L.T("压缩") is "Compress" in English. L.F formats keys with {0}-style placeholders.
 internal static partial class L
 {
-    private static readonly string SettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZestDrop", "settings.json");
     private static string? language;
 
     public static event Action? Changed;
@@ -26,7 +23,7 @@ internal static partial class L
             if (next == Language)
                 return;
             language = next;
-            Save();
+            Settings.Set("language", next);
             Changed?.Invoke();
         }
     }
@@ -42,25 +39,7 @@ internal static partial class L
 
     private static string? Override() => Environment.GetEnvironmentVariable("ZESTDROP_LANG") is "zh" or "en" ? Environment.GetEnvironmentVariable("ZESTDROP_LANG") : null;
 
-    private static string? Load()
-    {
-        try
-        {
-            using var json = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            return json.RootElement.TryGetProperty("language", out var value) && value.GetString() is "zh" or "en" ? value.GetString() : null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { return null; }
-    }
-
-    private static void Save()
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new { language }));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-    }
+    private static string? Load() => Settings.GetString("language") is "zh" or "en" ? Settings.GetString("language") : null;
 
     public static IReadOnlyDictionary<string, string> Translations => En;
 }

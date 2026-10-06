@@ -8,9 +8,9 @@ A Windows desktop file conversion utility that runs in the system tray. Drag fil
 
 ## Download
 
-Download the [v0.1.0 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v0.1.0/ZestDrop-v0.1.0-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
+Download the [v0.1.2 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v0.1.2/ZestDrop-v0.1.2-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
 
-See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v0.1.0) for requirements and known limitations.
+See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v0.1.2) for requirements and known limitations.
 
 ## Screenshots
 
@@ -100,6 +100,10 @@ Package a local build with `Compress-Archive -Path ./outputs/ZestDrop -Destinati
 ## Microsoft Store package
 
 `./package-msix.ps1` builds the app (use `-SkipBuild` to reuse `outputs/ZestDrop`) and packs it into `outputs/msix/ZestDrop_<version>_x64.msix` with the Windows SDK's `makeappx`. The package is unsigned on purpose: upload it in Partner Center and the Store signs it. The identity values in `packaging/AppxManifest.xml` come from Partner Center. `packaging/store-listing.md` has the listing text, and `packaging/make-screenshots.py` rebuilds the screenshots from the app's debug render modes.
+
+Before uploading, run `./outputs/ZestDrop/runtime/python/python.exe packaging/check-package.py`. It opens the built `.msix` as a zip (nothing is installed) and checks the manifest, the logo sizes, that no file path is too long once installed, that no logs, caches or debug files slipped in, and that the license notices are present. A Store install is read-only, so ZestDrop writes nothing next to its own files; its settings and logs go to `%LOCALAPPDATA%\ZestDrop`.
+
+ZestDrop has no main window, so launching it (and launching it again while it runs) opens a short welcome window that explains how to use it and where its tray icon is. It has a language switch and a "Don't show this window when ZestDrop starts" option.
 
 ## Validation
 

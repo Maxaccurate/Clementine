@@ -19,6 +19,8 @@ internal static class Native
         GetClassName(GetForegroundWindow(), name, name.Capacity);
         return name.ToString() is "CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW";
     }
+    // Lets a window in another process come to the front; used when a second launch asks the running copy to show itself.
+    [DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(int processId);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     public static bool Down(int key) => (GetAsyncKeyState(key) & 0x8000) != 0;
 }

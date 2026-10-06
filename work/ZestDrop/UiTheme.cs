@@ -46,7 +46,7 @@ internal static class UiTheme
         window.WindowStyle = WindowStyle.None;
         WindowChrome.SetWindowChrome(window, new WindowChrome { CaptionHeight = 42, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
     }
-    public static UIElement Frame(Window window, UIElement content)
+    public static UIElement Frame(Window window, UIElement content, string? title = null)
     {
         var root = new Grid();
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(42) });
@@ -62,7 +62,7 @@ internal static class UiTheme
         actions.Children.Add(minimize);
         actions.Children.Add(close);
         caption.Children.Add(actions);
-        caption.Children.Add(new TextBlock { Text = L.T("ZestDrop  /  工具"), Foreground = Muted, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
+        caption.Children.Add(new TextBlock { Text = title ?? L.T("ZestDrop  /  工具"), Foreground = Muted, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
         root.Children.Add(caption);
         Grid.SetRow(content, 1);
         root.Children.Add(content);

@@ -201,6 +201,36 @@ internal static class Program
             testApp.Run();
             return 0;
         }
+        if (args.Length == 2 && args[0] == "--debug-welcome")
+        {
+            // Renders the welcome window to <prefix>-en.png and <prefix>-zh.png.
+            var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            testApp.Dispatcher.InvokeAsync(async () =>
+            {
+                foreach (var language in new[] { "en", "zh" })
+                {
+                    L.UseForSession(language);
+                    var window = new WelcomeWindow { Left = 40, Top = 40, ShowActivated = false };
+                    window.Show();
+                    await Task.Delay(700);
+                    window.UpdateLayout();
+                    var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                    var background = new System.Windows.Media.DrawingVisual();
+                    using (var dc = background.RenderOpen())
+                        dc.DrawRectangle(window.Background, null, new Rect(0, 0, window.ActualWidth, window.ActualHeight));
+                    bitmap.Render(background);
+                    bitmap.Render((System.Windows.Media.Visual)window.Content);
+                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                    using (var stream = File.Create($"{args[1]}-{language}.png"))
+                        encoder.Save(stream);
+                    window.Close();
+                }
+                testApp.Shutdown();
+            });
+            testApp.Run();
+            return 0;
+        }
         if (args.Length == 2 && args[0] == "--debug-job")
         {
             var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -224,10 +254,17 @@ internal static class Program
             return 0;
         }
         using var mutex = new Mutex(true, @"Local\ZestDrop_20261003", out bool first);
+        // Both copies create the same named event, so it works whichever starts first.
+        using var showRequest = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\ZestDrop_20261003_Show");
         if (!first)
+        {
+            // Launching ZestDrop again (for example from the Start menu) wakes the running copy and shows its window.
+            Native.AllowSetForegroundWindow(-1);
+            showRequest.Set();
             return 0;
+        }
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        using var resident = new Resident(app);
+        using var resident = new Resident(app, showRequest);
         app.Run();
         return 0;
     }
@@ -314,7 +351,9 @@ internal sealed class Resident : IDisposable
     }
     private sealed record QueuedJob(ConversionJob Job, TaskCompletionSource<BatchResult>? Completion = null, CancellationToken Cancellation = default, IProgress<JobProgress>? Progress = null) { public volatile bool Started; }
 
-    public Resident(System.Windows.Application app)
+    private WelcomeWindow? welcome;
+
+    public Resident(System.Windows.Application app, EventWaitHandle showRequest)
     {
         this.app = app;
         Journal.Prune();
@@ -332,13 +371,50 @@ internal sealed class Resident : IDisposable
         taskIndicator.PauseRequested += card => { if (jobs.FirstOrDefault(j => j.Card == card) is { } job) PauseJob(job); };
         taskIndicator.ResumeRequested += card => { if (jobs.FirstOrDefault(j => j.Card == card) is { } job) ResumeJob(job); };
         taskIndicator.CancelRequested += card => { if (jobs.FirstOrDefault(j => j.Card == card) is { } job) CancelJob(job); };
-        tray.DoubleClick += (_, _) => Notify(L.T("桌面拖拽转换"), L.T("在桌面或资源管理器拖文件，按 Shift 转换格式，Ctrl+Shift 选择工具。拖拽时按 F8/F9 也可打开菜单。"));
+        tray.DoubleClick += (_, _) => ShowWelcome();
         timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(25) };
         timer.Tick += Poll;
         timer.Start();
         _ = WorkQueue();
         Journal.Write("Started", new { noMainWindow = true, modifierShortcuts = true, dragFunctionKeys = true });
-        Notify(L.T("ZestDrop 已运行"), L.T("拖文件 + Shift：转换；Ctrl+Shift：工具。拖拽时也可按 F8/F9。"));
+        // ZestDrop only starts when someone launches it, so show how to use it. People who prefer the quiet start
+        // can switch the window off; they still get the tray notification.
+        if (Settings.GetBool(WelcomeWindow.HideAtStartKey, false))
+            Notify(L.T("ZestDrop 已运行"), L.T("拖文件 + Shift：转换；Ctrl+Shift：工具。拖拽时也可按 F8/F9。"));
+        else
+            ShowWelcome();
+        WatchForSecondLaunch(showRequest);
+    }
+
+    // Shows the welcome window, or brings it to the front if it is already open.
+    private void ShowWelcome()
+    {
+        if (disposed)
+            return;
+        if (welcome == null)
+        {
+            welcome = new WelcomeWindow();
+            welcome.Closed += (_, _) => welcome = null;
+            welcome.Show();
+        }
+        if (welcome.WindowState == WindowState.Minimized)
+            welcome.WindowState = WindowState.Normal;
+        // Toggling Topmost reliably raises the window above whatever was in front, without keeping it there.
+        welcome.Topmost = true;
+        welcome.Activate();
+        welcome.Topmost = false;
+    }
+
+    private void WatchForSecondLaunch(EventWaitHandle showRequest)
+    {
+        var watcher = new Thread(() =>
+        {
+            var handles = new WaitHandle[] { showRequest, stopping.Token.WaitHandle };
+            while (WaitHandle.WaitAny(handles) == 0)
+                app.Dispatcher.InvokeAsync(ShowWelcome);
+        })
+        { IsBackground = true, Name = "ZestDrop second-launch watcher" };
+        watcher.Start();
     }
 
     private void OpenNotices()
@@ -352,7 +428,7 @@ internal sealed class Resident : IDisposable
         tray.Text = L.T("ZestDrop · 拖文件 + Shift 转换 / Ctrl+Shift 工具");
         var old = tray.ContextMenuStrip;
         var items = new Forms.ContextMenuStrip();
-        items.Items.Add(L.T("使用方式：拖文件 + Shift / Ctrl+Shift"), null, (_, _) => Notify(L.T("桌面拖拽转换"), L.T("拖文件时按 Shift，移到目标格式上松手；Ctrl+Shift 打开工具。菜单出现后可松开键盘，只保持鼠标按住。拖拽时按 F8/F9 也可以。")));
+        items.Items.Add(L.T("使用方式：拖文件 + Shift / Ctrl+Shift"), null, (_, _) => ShowWelcome());
         items.Items.Add(new Forms.ToolStripSeparator());
         var showProgress = items.Items.Add(L.T("显示处理进度"), null, (_, _) => taskIndicator.ShowAll());
         var pauseAll = items.Items.Add(L.T("暂停全部任务"), null, (_, _) =>
@@ -651,6 +727,7 @@ internal sealed class Resident : IDisposable
         }
         tray.Dispose();
         trayIcon.Dispose();
+        welcome?.Close();
         wheel.Close();
         taskIndicator.Close();
         Journal.Write("Stopped");

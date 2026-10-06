@@ -15,6 +15,8 @@
     <Compile Include="../ZestDrop/TempSweep.cs" Link="TempSweep.cs"/>
     <Compile Include="../ZestDrop/Native.cs" Link="Native.cs"/>
     <Compile Include="../ZestDrop/JobCard.cs" Link="JobCard.cs"/>
+    <Compile Include="../ZestDrop/Settings.cs" Link="Settings.cs"/>
+    <Compile Include="../ZestDrop/WelcomeWindow.cs" Link="WelcomeWindow.cs"/>
     <Compile Include="../ZestDrop/TaskIndicatorWindow.cs" Link="TaskIndicatorWindow.cs"/>
     <Compile Include="../ZestDrop/ProcessTreePause.cs" Link="ProcessTreePause.cs"/>
     <Compile Include="../ZestDrop/Catalog.cs" Link="Catalog.cs"/>

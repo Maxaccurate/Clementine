@@ -301,6 +301,58 @@ internal static class Checks
             }
             finally { L.UseForSession("zh"); }
         });
+        Check("settings keep each other's values and survive a damaged file", () =>
+        {
+            string file = Path.Combine(Path.GetTempPath(), "zestdrop-settings-" + Guid.NewGuid().ToString("N") + ".json");
+            Settings.PathOverride = file;
+            try
+            {
+                Require(Settings.GetString("language") == null && Settings.GetBool("hideWelcome", false) == false);
+                Settings.Set("language", "en");
+                Settings.Set("hideWelcome", true);
+                Settings.Set("language", "zh");
+                Require(Settings.GetString("language") == "zh" && Settings.GetBool("hideWelcome", false));
+                File.WriteAllText(file, "{ this is not json");
+                Require(Settings.GetString("language") == null && Settings.GetBool("hideWelcome", true));
+                Settings.Set("hideWelcome", false);
+                Require(!Settings.GetBool("hideWelcome", true) && !File.Exists(file + ".tmp"));
+            }
+            finally
+            {
+                Settings.PathOverride = null;
+                try { File.Delete(file); } catch (IOException) { }
+            }
+        });
+        Check("the welcome window explains the app in both languages and remembers the startup choice", () =>
+        {
+            string file = Path.Combine(Path.GetTempPath(), "zestdrop-welcome-" + Guid.NewGuid().ToString("N") + ".json");
+            Settings.PathOverride = file;
+            try
+            {
+                L.UseForSession("en");
+                var window = new WelcomeWindow();
+                var english = Texts(window);
+                Require(english.Contains("Welcome to ZestDrop") && english.Contains("Drag files") && english.Contains("Press Shift") && english.Contains("Got it"));
+                Require(english.Any(t => t.Contains("notification area")) && english.Any(t => t.Contains("never connects to the internet")));
+                Require(english.Contains("English") && english.Contains("简体中文"));
+                var box = FindAll<CheckBox>(window).Single();
+                Require(box.IsChecked == false);
+                box.IsChecked = true;
+                box.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Require(Settings.GetBool(WelcomeWindow.HideAtStartKey, false));
+                // Changing the language rebuilds the open window, and the checkbox still reflects the saved choice.
+                L.Language = "zh"; // the same setter the language buttons and the tray menu use
+                var chinese = Texts(window);
+                Require(chinese.Contains("欢迎使用 ZestDrop") && chinese.Contains("知道了") && FindAll<CheckBox>(window).Single().IsChecked == true);
+                window.Close();
+            }
+            finally
+            {
+                Settings.PathOverride = null;
+                L.UseForSession("zh");
+                try { File.Delete(file); } catch (IOException) { }
+            }
+        });
         // End to end with the real worker and FFmpeg. Needs the portable runtime: set ZESTDROP_APP to outputs/ZestDrop.
         string? app = Environment.GetEnvironmentVariable("ZESTDROP_APP");
         if (app != null) Check("a real conversion pauses mid-encode, resumes, and still produces a valid file", () =>
@@ -356,10 +408,18 @@ internal static class Checks
         try { JobValidation.Check(new ConversionJob(["a.mp4"], "trimVideo", new Dictionary<string, string> { ["start"] = "5", ["end"] = "2" }), 0, 0, 10); return ""; }
         catch (ArgumentException ex) { return ex.Message; }
     }
+    private static List<T> FindAll<T>(DependencyObject root) where T : DependencyObject
+    {
+        var found = new List<T>();
+        if (root is T match) found.Add(match);
+        foreach (var child in LogicalTreeHelper.GetChildren(root)) if (child is DependencyObject node) found.AddRange(FindAll<T>(node));
+        return found;
+    }
     private static List<string> Texts(DependencyObject root)
     {
         var found = new List<string>();
         if (root is TextBlock text) found.Add(text.Text);
+        if (root is ContentControl { Content: string label }) found.Add(label);
         foreach (var child in LogicalTreeHelper.GetChildren(root)) if (child is DependencyObject node) found.AddRange(Texts(node));
         return found;
     }

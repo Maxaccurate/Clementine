@@ -58,9 +58,6 @@ internal static partial class L
         // Tray and notifications
         ["ZestDrop · 拖文件 + Shift 转换 / Ctrl+Shift 工具"] = "ZestDrop · Drag + Shift to convert / Ctrl+Shift for tools",
         ["使用方式：拖文件 + Shift / Ctrl+Shift"] = "How to use: drag a file + Shift / Ctrl+Shift",
-        ["桌面拖拽转换"] = "Drag-and-drop conversion",
-        ["拖文件时按 Shift，移到目标格式上松手；Ctrl+Shift 打开工具。菜单出现后可松开键盘，只保持鼠标按住。拖拽时按 F8/F9 也可以。"] = "While dragging a file, press Shift and release on the format you want; Ctrl+Shift opens tools. Once the menu appears you can let go of the keys and just keep holding the mouse. F8/F9 also work while dragging.",
-        ["在桌面或资源管理器拖文件，按 Shift 转换格式，Ctrl+Shift 选择工具。拖拽时按 F8/F9 也可打开菜单。"] = "Drag files on the desktop or in File Explorer and press Shift to convert, or Ctrl+Shift for tools. F8/F9 also open the menu while dragging.",
         ["显示处理进度"] = "Show progress",
         ["暂停全部任务"] = "Pause all jobs",
         ["继续全部任务"] = "Resume all jobs",
@@ -82,6 +79,20 @@ internal static partial class L
         ["此任务已取消。"] = "This job was cancelled.",
         ["此任务已取消，未完成的临时文件已清理。"] = "This job was cancelled and its unfinished files were removed.",
         ["转换未完成"] = "Conversion not completed",
+
+        // Welcome window
+        ["欢迎使用 ZestDrop"] = "Welcome to ZestDrop",
+        ["拖动，松手，转换。"] = "Drag. Drop. Convert.",
+        ["拖动文件"] = "Drag files",
+        ["在桌面或资源管理器中选中一个或多个文件，像移动文件一样开始拖动。"] = "Select one or more files on the desktop or in File Explorer and start dragging them, as if you were moving them.",
+        ["按下 Shift"] = "Press Shift",
+        ["拖动时按 Shift 打开格式菜单，按 Ctrl+Shift 打开工具菜单。菜单出现后可以松开按键。"] = "While dragging, press Shift for the format menu or Ctrl+Shift for the tools menu. Once the menu appears you can let go of the keys.",
+        ["在选项上松手"] = "Release on an option",
+        ["新文件会保存在原文件旁边，原文件不会被改动。"] = "The new file is saved next to the original, which is never changed.",
+        ["ZestDrop 在通知区域（任务栏右侧时钟旁）运行，没有主窗口。右键托盘图标可暂停或取消任务、切换语言或退出。看不到图标？点击任务栏上的 ^ 箭头。"] = "ZestDrop runs in the notification area (next to the clock) and has no main window. Right-click its icon to pause or cancel jobs, change the language or quit. Can't see the icon? Click the ^ arrow on the taskbar.",
+        ["所有处理都在本机完成，不上传任何文件，也不联网。"] = "Everything is processed on this PC. Nothing is uploaded, and ZestDrop never connects to the internet.",
+        ["启动时不再显示此窗口"] = "Don't show this window when ZestDrop starts",
+        ["知道了"] = "Got it",
 
         // Debug previews
         ["ZestDrop 播放器检查"] = "ZestDrop player check",
