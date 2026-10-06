@@ -17,6 +17,24 @@ internal static class Checks
         var checks=new List<object>();int failed=0;
         void Check(string name,Action action){try{action();checks.Add(new{test=name,passed=true});}catch(Exception ex){failed++;checks.Add(new{test=name,passed=false,error=ex.Message});}}
         void Require(bool value){if(!value)throw new Exception("Unexpected progress result");}
+        Check("layered wheel retains each visible sector's drop target",()=>
+        {
+            string path=Path.Combine(Path.GetTempPath(),"zestdrop-wheel-"+Guid.NewGuid().ToString("N")+".png");File.WriteAllText(path,"fixture");
+            var wheel=new DropWheel((_,_)=>{});
+            try
+            {
+                wheel.Preview([path],false,"convert:jpg");var actions=Catalog.Options([path],false);var hit=typeof(DropWheel).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Instance)!;
+                for(int i=0;i<actions.Count;i++){double angle=-Math.PI/2+i*2*Math.PI/actions.Count;Require((int)hit.Invoke(wheel,[new Point(190+119*Math.Cos(angle),190+119*Math.Sin(angle))])! == i);}
+                Require((int)hit.Invoke(wheel,[new Point(190,190)])! == -1);Require((int)hit.Invoke(wheel,[new Point(190,130)])! == -1);Require((int)hit.Invoke(wheel,[new Point(1,1)])! == -1);
+            }
+            finally{wheel.Close();File.Delete(path);}
+        });
+        Check("wheel mode changes keep the dragged file and valid tool sectors",()=>
+        {
+            string path=Path.Combine(Path.GetTempPath(),"zestdrop-wheel-"+Guid.NewGuid().ToString("N")+".png");File.WriteAllText(path,"fixture");var wheel=new DropWheel((_,_)=>{});
+            try{wheel.Preview([path],false,"convert:jpg");wheel.ChangeMode(true);Require(wheel.HasFileDrag&&wheel.ToolsMode);var actions=Catalog.Options([path],true);var hit=typeof(DropWheel).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Instance)!;for(int i=0;i<actions.Count;i++){double angle=-Math.PI/2+i*2*Math.PI/actions.Count;Require((int)hit.Invoke(wheel,[new Point(190+119*Math.Cos(angle),190+119*Math.Sin(angle))])! == i);}}
+            finally{wheel.Close();File.Delete(path);}
+        });
         Check("trim start handle cannot cross end",()=>Require(TrimRange.Start(90,60,120)<60));
         Check("trim end handle cannot cross start",()=>Require(TrimRange.End(10,40,120)>40));
         Check("trim handles stay inside source duration",()=>Require(TrimRange.Start(-2,60,120)==0&&TrimRange.End(200,40,120)==120));
