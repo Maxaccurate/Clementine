@@ -115,7 +115,7 @@ internal sealed class ToolWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var header = new StackPanel();
         header.Children.Add(new TextBlock { Text = operation.Label, FontSize = 26, FontWeight = FontWeights.SemiBold });
-        header.Children.Add(new TextBlock { Text = paths.Length == 1 ? Path.GetFileName(paths[0]) : L.F("已选 {0} 个文件", paths.Length), Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 20) });
+        header.Children.Add(new TextBlock { Text = paths.Length == 1 ? Path.GetFileName(paths[0]) : (paths.Length == 1 ? L.T("已选 1 个文件") : L.F("已选 {0} 个文件", paths.Length)), Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 20) });
         root.Children.Add(header);
         var body = new Grid();
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

@@ -17,6 +17,12 @@ Copy-Item -LiteralPath (Join-Path $taskRoot 'work/ZestDrop/backend') -Destinatio
 Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/usage.md') -Destination (Join-Path $taskOutput '使用说明.md') -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/dependencies.json') -Destination (Join-Path $taskOutput '依赖清单.json') -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'LICENSE') -Destination (Join-Path $taskOutput 'LICENSE') -Force
+# Third-party notices, opened from the tray menu; generated from docs/dependencies.json.
+$taskPython = Join-Path $taskOutput 'runtime/python/python.exe'
+if (Test-Path -LiteralPath $taskPython) {
+    & $taskPython (Join-Path $taskRoot 'work/make-notices.py') (Join-Path $taskOutput 'THIRD-PARTY-NOTICES.txt')
+    if ($LASTEXITCODE -ne 0) { throw 'Generating third-party notices failed.' }
+} elseif (-not $SkipRuntimeCheck) { throw 'Missing runtime/python; cannot generate third-party notices.' }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/validation') -Destination $taskOutput -Recurse -Force
 $taskSource = Join-Path $taskOutput 'source'
 New-Item -ItemType Directory -Force -Path $taskSource | Out-Null

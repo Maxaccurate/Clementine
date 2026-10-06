@@ -17,6 +17,8 @@ internal static class Backend
         info.ArgumentList.Add(Path.Combine(baseDir, "backend", "worker.py"));
         // Messages from the engine (errors, page headings in text exports) follow the app's language.
         info.Environment["ZESTDROP_LANG"] = L.Language;
+        // The Store installs the app into a read-only folder, so Python must not try to write bytecode caches there.
+        info.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
         foreach (string arg in arguments)
             info.ArgumentList.Add(arg);
         return info;

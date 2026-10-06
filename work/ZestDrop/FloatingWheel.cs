@@ -100,6 +100,16 @@ internal sealed class DropWheel : Window
         entered = false;
         Journal.Write("WheelDismissed", new { reason });
     }
+    // For screenshots: show the wheel as if these files were being dragged over it, with one option lit.
+    public void Preview(string[] files, bool toolsMode, string highlightId)
+    {
+        tools = toolsMode;
+        paths = files;
+        entered = allowedCopy = true;
+        Populate();
+        Highlight(operations.FindIndex(o => o.Id == highlightId));
+    }
+
     public void ChangeMode(bool nextTools)
     {
         tools = nextTools;
@@ -112,7 +122,7 @@ internal sealed class DropWheel : Window
         operations = paths.Length <= 200 ? Catalog.Options(paths, tools) : [];
         eligible = allowedCopy && operations.Count > 0;
         bool packing = Catalog.PackingOnly(paths);
-        count.Text = eligible ? (packing && !tools ? L.T("仅支持打包") : L.F("{0} 个文件", paths.Length)) : L.T("无可用操作");
+        count.Text = eligible ? (packing && !tools ? L.T("仅支持打包") : (paths.Length == 1 ? L.T("1 个文件") : L.F("{0} 个文件", paths.Length))) : L.T("无可用操作");
         hint.Text = packing && !tools ? L.T("暂不支持格式转换") : eligible ? L.T("选操作后松手") : L.T("Esc 取消");
         Render(operations);
     }

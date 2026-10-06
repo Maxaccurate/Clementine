@@ -94,7 +94,12 @@ Package a local build with `Compress-Archive -Path ./outputs/ZestDrop -Destinati
 | `work/ProgressChecks/` | Progress reading and component lifecycle checks |
 | `work/test-*.py` | Backend and application dispatch checks using generated fixtures |
 | `docs/validation/` | Local validation records with anonymized paths |
+| `packaging/` | Microsoft Store package manifest, logo assets, listing text and screenshots; `package-msix.ps1` builds the `.msix` |
 | `outputs/` | Build artifacts, runtimes, and generated reports; ignored by Git |
+
+## Microsoft Store package
+
+`./package-msix.ps1` builds the app (use `-SkipBuild` to reuse `outputs/ZestDrop`) and packs it into `outputs/msix/ZestDrop_<version>_x64.msix` with the Windows SDK's `makeappx`. The package is unsigned on purpose: upload it in Partner Center and the Store signs it. The identity values in `packaging/AppxManifest.xml` come from Partner Center. `packaging/store-listing.md` has the listing text, and `packaging/make-screenshots.py` rebuilds the screenshots from the app's debug render modes.
 
 ## Validation
 

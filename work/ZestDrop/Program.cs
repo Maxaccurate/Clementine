@@ -18,6 +18,21 @@ namespace ZestDrop;
 
 internal static class Program
 {
+    private static string WritableResultPath()
+    {
+        string preferred = Path.Combine(AppContext.BaseDirectory, "last-cli-result.json");
+        try
+        {
+            using (File.Open(preferred, FileMode.OpenOrCreate, FileAccess.Write)) { }
+            return preferred;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Directory.CreateDirectory(Journal.DirectoryPath);
+            return Path.Combine(Journal.DirectoryPath, "last-cli-result.json");
+        }
+    }
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -105,7 +120,7 @@ internal static class Program
         {
             string folder = Path.Combine(Journal.DirectoryPath, "cli-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(folder);
-            string request = Path.Combine(folder, "request.json"), response = Path.Combine(AppContext.BaseDirectory, "last-cli-result.json");
+            string request = Path.Combine(folder, "request.json"), response = WritableResultPath();
             File.WriteAllText(request, JsonSerializer.Serialize(new ConversionJob(args.Skip(2).ToArray(), "convert:" + args[1])));
             Backend.Run(["--job", request, response]).GetAwaiter().GetResult();
             var result = JsonSerializer.Deserialize<BatchResult>(File.ReadAllText(response))!;
@@ -117,6 +132,29 @@ internal static class Program
         {
             var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
             testApp.Run(new ToolWindow(args.Skip(2).ToArray(), Catalog.Definition(args[1], Catalog.Category(args[2])), Backend.Execute));
+            return 0;
+        }
+        if (args.Length == 5 && args[0] == "--debug-wheel-render")
+        {
+            // --debug-wheel-render <formats|tools> <file> <operation id to highlight> <out.png>
+            var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            testApp.Dispatcher.InvokeAsync(() =>
+            {
+                var wheel = new DropWheel((_, _) => { });
+                wheel.Preview([args[2]], args[1] == "tools", args[3]);
+                var root = (FrameworkElement)wheel.Content;
+                root.Measure(new Size(380, 380));
+                root.Arrange(new Rect(0, 0, 380, 380));
+                root.UpdateLayout();
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(1140, 1140, 288, 288, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(root);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                using (var stream = File.Create(args[4]))
+                    encoder.Save(stream);
+                testApp.Shutdown();
+            });
+            testApp.Run();
             return 0;
         }
         if (args.Length == 2 && args[0] == "--debug-indicator")
@@ -193,6 +231,12 @@ internal static class Program
         app.Run();
         return 0;
     }
+}
+
+internal static class Notices
+{
+    // Shipped beside the executable by build.ps1; lists every bundled component and its license.
+    public static string Path => System.IO.Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.txt");
 }
 
 internal static class Journal
@@ -297,6 +341,12 @@ internal sealed class Resident : IDisposable
         Notify(L.T("ZestDrop 已运行"), L.T("拖文件 + Shift：转换；Ctrl+Shift：工具。拖拽时也可按 F8/F9。"));
     }
 
+    private void OpenNotices()
+    {
+        if (File.Exists(Notices.Path))
+            Process.Start(new ProcessStartInfo(Notices.Path) { UseShellExecute = true });
+    }
+
     private void BuildTrayMenu()
     {
         tray.Text = L.T("ZestDrop · 拖文件 + Shift 转换 / Ctrl+Shift 工具");
@@ -312,6 +362,7 @@ internal sealed class Resident : IDisposable
                 if (resume) ResumeJob(job); else PauseJob(job);
         });
         var cancelAll = items.Items.Add(L.T("取消全部任务"), null, (_, _) => { foreach (var job in jobs.ToList()) CancelJob(job); });
+        items.Items.Add(L.T("第三方组件许可"), null, (_, _) => OpenNotices());
         items.Items.Add(L.T("最近输出所在文件夹"), null, (_, _) => { if (lastOutput != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{lastOutput}\"") { UseShellExecute = true }); });
         items.Items.Add(new Forms.ToolStripSeparator());
         // Language names are shown in their own language so either can be found whatever is active.
