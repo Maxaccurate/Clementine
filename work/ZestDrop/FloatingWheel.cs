@@ -47,7 +47,7 @@ internal sealed class DropWheel : Window
         ShowActivated = false;
         Topmost = true;
         AllowDrop = true;
-        FontFamily = new FontFamily("Segoe UI");
+        FontFamily = UiTheme.Font;
         var disk = new Ellipse { Width = 360, Height = 360, Fill = Solid("#EAEEEB"), IsHitTestVisible = false,
             Effect = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 5, Opacity = .13, Color = Color.FromRgb(42, 50, 45) } };
         Canvas.SetLeft(disk, 10);
@@ -63,7 +63,7 @@ internal sealed class DropWheel : Window
         count.Text = L.T("拖入文件");
         count.TextAlignment = TextAlignment.Center;
         count.FontSize = 15;
-        count.FontWeight = FontWeights.SemiBold;
+        count.FontWeight = FontWeights.Medium;
         count.Foreground=UiTheme.Ink;
         hint.Text = L.T("Shift 格式 · Ctrl+Shift 工具");
         hint.TextAlignment = TextAlignment.Center;
@@ -234,10 +234,15 @@ internal sealed class DropWheel : Window
             Canvas.SetZIndex(shape, 2);
             petals.Add(shape);
             canvas.Children.Add(shape);
-            var label = new TextBlock { Text = actions[i].Label, Foreground=UiTheme.Ink,FontSize = actions.Count > 7 ? 12 : 14, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Width = 80, Height = 44, IsHitTestVisible = false };
+            double labelWidth = Math.Clamp(2 * 119 * Math.Sin(half) - 16, 72, 112);
+            var label = new TextBlock { Text = actions[i].Label, FontFamily = UiTheme.Font, Foreground = UiTheme.Ink,
+                FontSize = actions.Count > 7 ? 12 : 14, FontWeight = FontWeights.Medium,
+                TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Width = labelWidth,
+                IsHitTestVisible = false };
+            label.Measure(new Size(labelWidth, double.PositiveInfinity));
             Point p = Polar(119, angle);
-            Canvas.SetLeft(label, p.X - 40);
-            Canvas.SetTop(label, p.Y - 16);
+            Canvas.SetLeft(label, p.X - labelWidth / 2);
+            Canvas.SetTop(label, p.Y - label.DesiredSize.Height / 2);
             Canvas.SetZIndex(label, 3);
             labels.Add(label);
             canvas.Children.Add(label);

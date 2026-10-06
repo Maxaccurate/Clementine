@@ -21,5 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
+    <Resource Include="assets/fonts/SourceHanSansCN-Medium.otf" />
+    <Content Include="assets/fonts/OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

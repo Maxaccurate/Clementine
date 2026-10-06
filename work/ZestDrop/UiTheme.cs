@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Markup;
@@ -8,6 +9,10 @@ namespace ZestDrop;
 
 internal static class UiTheme
 {
+    private static readonly Uri FontBase = new($"pack://application:,,,/{typeof(UiTheme).Assembly.GetName().Name};component/");
+    public static readonly FontFamily ChineseFont = new(FontBase, "./assets/fonts/#Source Han Sans CN Medium");
+    // Latin uses Segoe UI; Chinese resolves to the bundled physical Medium face.
+    public static readonly FontFamily Font = new(FontBase, "Segoe UI, ./assets/fonts/#Source Han Sans CN Medium");
     public static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(36, 39, 43));
     public static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(110, 115, 123));
     public static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(213, 84, 24));
@@ -39,7 +44,7 @@ internal static class UiTheme
           <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#24272B"/></Style>
         </ResourceDictionary>
         """);
-        window.FontFamily = new FontFamily("Microsoft YaHei UI");
+        window.FontFamily = Font;
         window.Foreground = Ink;
         window.FontSize = 13;
         window.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));

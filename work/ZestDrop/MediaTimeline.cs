@@ -40,7 +40,9 @@ internal sealed class MediaTimeline : FrameworkElement
     }
     private void DrawLabel(DrawingContext dc, string text, double x, double y)
     {
-        var label = new FormattedText(text, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Microsoft YaHei UI"), 10, new SolidColorBrush(Color.FromRgb(213, 215, 221)), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        var label = new FormattedText(text, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            new Typeface(UiTheme.Font, FontStyles.Normal, FontWeights.Medium, FontStretches.Normal),
+            10, new SolidColorBrush(Color.FromRgb(213, 215, 221)), VisualTreeHelper.GetDpi(this).PixelsPerDip);
         dc.DrawText(label, new Point(x, y));
     }
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)

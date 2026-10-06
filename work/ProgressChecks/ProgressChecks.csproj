@@ -24,5 +24,6 @@
     <Compile Include="../ZestDrop/OfficeBridge.cs" Link="OfficeBridge.cs"/>
     <Compile Include="../ZestDrop/JobValidation.cs" Link="JobValidation.cs"/>
     <EmbeddedResource Include="../ZestDrop/assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
+    <Resource Include="../ZestDrop/assets/fonts/SourceHanSansCN-Medium.otf" Link="assets/fonts/SourceHanSansCN-Medium.otf" />
   </ItemGroup>
 </Project>

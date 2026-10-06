@@ -138,3 +138,5 @@ Run the full backend checks first to generate shared test fixtures. Office check
 ## License and dependencies
 
 Project source uses the repository's existing [MIT License](LICENSE). Python, .NET, FFmpeg, 7-Zip, and other third-party libraries retain their own licenses; see the [dependency record](docs/dependencies.json). The MIT License does not replace third-party licenses. Runtime dependencies, binary bundles, user files, and runtime logs are excluded from Git.
+
+Chinese interface text uses the bundled Source Han Sans CN Medium 2.005 font; Latin text uses Segoe UI. Source Han Sans is distributed under the [SIL Open Font License 1.1](work/ZestDrop/assets/fonts/OFL.txt), which is also included in application builds. No separate font installation is required.

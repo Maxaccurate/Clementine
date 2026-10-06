@@ -54,7 +54,7 @@ internal sealed class TaskIndicatorWindow : Window
         ShowInTaskbar = false;
         ShowActivated = false;
         Topmost = true;
-        FontFamily = new FontFamily("Microsoft YaHei UI");
+        FontFamily = UiTheme.Font;
         FontSize = 13;
         Resources.Add(typeof(Button), XamlReader.Parse("""
         <Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="Button">

@@ -116,5 +116,17 @@
     "https://pypi.org/",
     "https://7-zip.org/"
   ],
-  "app_version": "0.1.2"
+  "app_version": "0.1.2",
+  "fonts": [
+    {
+      "name": "Source Han Sans CN Medium",
+      "version": "2.005",
+      "license": "SIL Open Font License 1.1",
+      "copyright": "Copyright 2014-2025 Adobe",
+      "source": "https://github.com/adobe-fonts/source-han-sans",
+      "source_revision": "a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2",
+      "source_path": "SubsetOTF/CN/SourceHanSansCN-Medium.otf",
+      "license_path": "assets/fonts/OFL.txt"
+    }
+  ]
 }

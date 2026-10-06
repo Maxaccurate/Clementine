@@ -79,7 +79,7 @@ internal sealed class ToolWindow : Window
         MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = new SolidColorBrush(Color.FromRgb(248, 249, 251));
-        FontFamily = new FontFamily("Segoe UI");
+        FontFamily = UiTheme.Font;
         FontSize = 13;
         previewDelay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(550) };
         previewDelay.Tick += async (_, _) => { previewDelay.Stop(); await UpdatePreview(); };

@@ -38,6 +38,11 @@ lines = [
     f'.NET {dotnet} runtime and WPF - MIT License',
     '  https://github.com/dotnet/runtime  https://github.com/dotnet/wpf',
     '',
+    'Source Han Sans CN Medium 2.005 - SIL Open Font License 1.1',
+    '  Copyright 2014-2025 Adobe. Embedded in the application for Chinese interface text.',
+    '  License: assets/fonts/OFL.txt',
+    '  Source: https://github.com/adobe-fonts/source-han-sans',
+    '',
     'Python packages (license files: runtime/python/Lib/site-packages/<package>-<version>.dist-info/):',
 ]
 for package in sorted(deps['python_packages'], key=lambda p: p['name'].lower()):
