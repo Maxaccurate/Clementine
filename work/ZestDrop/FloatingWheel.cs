@@ -20,10 +20,11 @@ internal sealed class DropWheel : Window
     private readonly TextBlock count = new(), hint = new();
     private readonly List<ShapePath> petals = [];
     private readonly List<FrameworkElement> labels = [];
-    private readonly List<ShapePath> bevels = [];
+    private readonly List<ShapePath> sidewalls = [];
     private readonly Border center;
-    private static readonly Brush RestingFace=Surface("#FFFFFF","#F1F4F6","#DCE3E8");
-    private static readonly Brush SelectedFace=Surface("#FF983F","#C84A13","#A9360B",.34);
+    private static readonly Brush RestingFace = Solid("#F1F3F2"), SelectedFace = Solid("#FF6208");
+    private static readonly Brush RestingSide = Solid("#DDE2DE"), SelectedSide = Solid("#D94D04");
+    private static readonly Brush RestingOutline = Solid("#CFD5D1");
     private List<Operation> operations = [];
     private string[] paths = [];
     private bool entered, eligible, tools, allowedCopy;
@@ -31,7 +32,7 @@ internal sealed class DropWheel : Window
     public long Instance { get; private set; }
     public bool ToolsMode => tools;
     public bool HasFileDrag => entered && paths.Length > 0;
-    private const double Center = 190, Outer = 176, Inner = 57;
+    private const double Center = 190, Outer = 172, Inner = 65;
     public DropWheel(Action<string[], Operation> submit)
     {
         this.submit = submit;
@@ -47,15 +48,17 @@ internal sealed class DropWheel : Window
         Topmost = true;
         AllowDrop = true;
         FontFamily = new FontFamily("Segoe UI");
-        var shadow=new Ellipse{Width=352,Height=352,Fill=new SolidColorBrush(Color.FromRgb(55,65,75)),Opacity=.28,IsHitTestVisible=false,Effect=new BlurEffect{Radius=9}};
-        Canvas.SetLeft(shadow,14);Canvas.SetTop(shadow,20);canvas.Children.Add(shadow);
-        var disk = new Ellipse { Width = 360, Height = 360, Fill = Surface("#FFFFFF","#E4E9ED","#B7C2CA"), Stroke = new SolidColorBrush(Color.FromRgb(250,252,253)), StrokeThickness = 1.2,IsHitTestVisible=false };
+        var disk = new Ellipse { Width = 360, Height = 360, Fill = Solid("#EAEEEB"), IsHitTestVisible = false,
+            Effect = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 5, Opacity = .13, Color = Color.FromRgb(42, 50, 45) } };
         Canvas.SetLeft(disk, 10);
         Canvas.SetTop(disk, 10);
         canvas.Children.Add(disk);
-        var well=new Ellipse{Width=130,Height=130,Fill=Surface("#C4CFD7","#DFE6EB","#FFFFFF"),Stroke=new SolidColorBrush(Color.FromRgb(239,244,247)),StrokeThickness=1,IsHitTestVisible=false};
-        Canvas.SetLeft(well,Center-65);Canvas.SetTop(well,Center-65);Canvas.SetZIndex(well,8);canvas.Children.Add(well);
-        center = new Border { Width = 112, Height = 112, CornerRadius = new CornerRadius(56), Background = Surface("#FFFFFF","#FAFCFD","#E9EEF2"),BorderBrush=Brushes.White,BorderThickness=new Thickness(1),Effect=new DropShadowEffect{BlurRadius=9,ShadowDepth=3,Opacity=.16,Color=Color.FromRgb(45,61,73)} };
+        var hubSide = new Ellipse { Width = 112, Height = 112, Fill = RestingSide, IsHitTestVisible = false,
+            Effect = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 2, Opacity = .08, Color = Color.FromRgb(42, 50, 45) } };
+        Canvas.SetLeft(hubSide, Center - 56); Canvas.SetTop(hubSide, Center - 56 + 4);
+        Canvas.SetZIndex(hubSide, 9); canvas.Children.Add(hubSide);
+        center = new Border { Width = 112, Height = 112, CornerRadius = new CornerRadius(56), Background = Brushes.White,
+            BorderBrush = Solid("#F8FAF8"), BorderThickness = new Thickness(1) };
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         count.Text = L.T("拖入文件");
         count.TextAlignment = TextAlignment.Center;
@@ -179,10 +182,34 @@ internal sealed class DropWheel : Window
         Dispatcher.InvokeAsync(() => submit(files, selected));
     }
     private static Point Polar(double radius, double angle) => new(Center + radius * Math.Cos(angle), Center + radius * Math.Sin(angle));
-    private static Brush Surface(string top,string middle,string bottom,double middleOffset=.48)
+    private static Brush Solid(string color)
     {
-        var brush=new LinearGradientBrush{StartPoint=new Point(.2,0),EndPoint=new Point(.8,1)};
-        brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(top),0));brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(middle),middleOffset));brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(bottom),1));brush.Freeze();return brush;
+        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+        brush.Freeze();
+        return brush;
+    }
+    private static Geometry Keycap(double start, double end)
+    {
+        // Flat circular faces with softly rounded junctions between the arcs and radial edges.
+        const double outerCorner = 16, innerCorner = 10;
+        double outerInset = outerCorner / Outer, innerInset = innerCorner / Inner;
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            context.BeginFigure(Polar(Inner + innerCorner, start), true, true);
+            context.LineTo(Polar(Outer - outerCorner, start), true, false);
+            context.QuadraticBezierTo(Polar(Outer, start), Polar(Outer, start + outerInset), true, false);
+            context.ArcTo(Polar(Outer, end - outerInset), new Size(Outer, Outer), 0,
+                end - start - 2 * outerInset > Math.PI, SweepDirection.Clockwise, true, false);
+            context.QuadraticBezierTo(Polar(Outer, end), Polar(Outer - outerCorner, end), true, false);
+            context.LineTo(Polar(Inner + innerCorner, end), true, false);
+            context.QuadraticBezierTo(Polar(Inner, end), Polar(Inner, end - innerInset), true, false);
+            context.ArcTo(Polar(Inner, start + innerInset), new Size(Inner, Inner), 0,
+                end - start - 2 * innerInset > Math.PI, SweepDirection.Counterclockwise, true, false);
+            context.QuadraticBezierTo(Polar(Inner, start), Polar(Inner + innerCorner, start), true, false);
+        }
+        geometry.Freeze();
+        return geometry;
     }
     private void Render(List<Operation> actions)
     {
@@ -190,31 +217,28 @@ internal sealed class DropWheel : Window
             canvas.Children.Remove(shape);
         foreach (var label in labels)
             canvas.Children.Remove(label);
-        foreach(var bevel in bevels)canvas.Children.Remove(bevel);bevels.Clear();
+        foreach (var sidewall in sidewalls) canvas.Children.Remove(sidewall);
+        sidewalls.Clear();
         petals.Clear();
         labels.Clear();
         highlighted = -1;
         for (int i = 0; i < actions.Count; i++)
         {
-            double angle = -Math.PI / 2 + i * 2 * Math.PI / actions.Count, half = Math.PI / actions.Count, start = angle - half + .025, end = angle + half - .025;
-            var geometry = new StreamGeometry();
-            using (var context = geometry.Open())
-            {
-                context.BeginFigure(Polar(Inner, start), true, true);
-                context.LineTo(Polar(Outer, start), true, false);
-                context.ArcTo(Polar(Outer, end), new Size(Outer, Outer), 0, end - start > Math.PI, SweepDirection.Clockwise, true, false);
-                context.LineTo(Polar(Inner, end), true, false);
-                context.ArcTo(Polar(Inner, start), new Size(Inner, Inner), 0, end - start > Math.PI, SweepDirection.Counterclockwise, true, false);
-            }
-            geometry.Freeze();
-            var shape = new ShapePath { Data = geometry, Fill = RestingFace, Stroke = new SolidColorBrush(Color.FromRgb(200,210,217)), StrokeThickness = .8,Effect=new DropShadowEffect{BlurRadius=3,ShadowDepth=1.2,Opacity=.11,Color=Color.FromRgb(52,68,80)} };
+            double angle = -Math.PI / 2 + i * 2 * Math.PI / actions.Count, half = Math.PI / actions.Count, start = angle - half + .016, end = angle + half - .016;
+            var geometry = Keycap(start, end);
+            var sidewall = new ShapePath { Data = geometry, Fill = RestingSide, IsHitTestVisible = false,
+                RenderTransform = new TranslateTransform(0, 4),
+                Effect = new DropShadowEffect { BlurRadius = 6, ShadowDepth = 2, Opacity = .09, Color = Color.FromRgb(42, 50, 45) } };
+            Canvas.SetZIndex(sidewall, 1); sidewalls.Add(sidewall); canvas.Children.Add(sidewall);
+            var shape = new ShapePath { Data = geometry, Fill = RestingFace, Stroke = RestingOutline, StrokeThickness = .7 };
+            Canvas.SetZIndex(shape, 2);
             petals.Add(shape);
             canvas.Children.Add(shape);
-            var bevel=new ShapePath{Data=geometry,Fill=null,Stroke=new SolidColorBrush(Color.FromArgb(150,255,255,255)),StrokeThickness=.6,IsHitTestVisible=false};bevels.Add(bevel);canvas.Children.Add(bevel);
             var label = new TextBlock { Text = actions[i].Label, Foreground=UiTheme.Ink,FontSize = actions.Count > 7 ? 12 : 14, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Width = 80, Height = 44, IsHitTestVisible = false };
             Point p = Polar(119, angle);
             Canvas.SetLeft(label, p.X - 40);
             Canvas.SetTop(label, p.Y - 16);
+            Canvas.SetZIndex(label, 3);
             labels.Add(label);
             canvas.Children.Add(label);
         }
@@ -228,12 +252,11 @@ internal sealed class DropWheel : Window
         highlighted = index;
         for (int i = 0; i < petals.Count; i++)
         {
-            bool selected=i==index;petals[i].Fill=selected?SelectedFace:RestingFace;
-            petals[i].Stroke=selected?new SolidColorBrush(Color.FromRgb(223,99,24)):new SolidColorBrush(Color.FromRgb(200,210,217));
-            petals[i].Effect=new DropShadowEffect{BlurRadius=selected?6:3,ShadowDepth=selected?2.5:1.2,Opacity=selected?.24:.11,Color=selected?Color.FromRgb(173,69,20):Color.FromRgb(52,68,80)};
-            labels[i].SetValue(TextBlock.ForegroundProperty,selected?Brushes.White:UiTheme.Ink);
-            labels[i].Effect=selected?new DropShadowEffect{BlurRadius=1,ShadowDepth=.7,Opacity=.28,Color=Color.FromRgb(110,38,8)}:null;
-            bevels[i].Stroke=selected?new SolidColorBrush(Color.FromArgb(205,255,210,150)):new SolidColorBrush(Color.FromArgb(150,255,255,255));
+            bool selected = i == index;
+            petals[i].Fill = selected ? SelectedFace : RestingFace;
+            petals[i].Stroke = selected ? SelectedFace : RestingOutline;
+            sidewalls[i].Fill = selected ? SelectedSide : RestingSide;
+            labels[i].SetValue(TextBlock.ForegroundProperty, selected ? Brushes.White : UiTheme.Ink);
         }
         hint.Text = index >= 0 ? operations[index].Label : Catalog.PackingOnly(paths) ? L.T("暂不支持格式转换") : L.T("选操作后松手");
     }
