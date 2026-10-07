@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ZestDrop/UiTheme.cs" Link="UiTheme.cs"/>
+    <Compile Include="../ZestDrop/AppIcon.cs" Link="AppIcon.cs"/>
+    <Compile Include="../ZestDrop/Strings.cs" Link="Strings.cs"/>
+    <Compile Include="../ZestDrop/StringsEn.cs" Link="StringsEn.cs"/>
+    <Compile Include="../ZestDrop/Settings.cs" Link="Settings.cs"/>
+    <EmbeddedResource Include="../ZestDrop/assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon"/>
+    <Resource Include="../ZestDrop/assets/fonts/SourceHanSansCN-Medium.otf" Link="assets/fonts/SourceHanSansCN-Medium.otf"/>
+  </ItemGroup>
+</Project>
