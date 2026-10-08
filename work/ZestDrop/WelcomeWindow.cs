@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -55,6 +56,7 @@ internal sealed class WelcomeWindow : Window
         var card = UiTheme.Card(tray, new Thickness(18, 14, 18, 14));
         card.Margin = new Thickness(0, 6, 0, 0);
         panel.Children.Add(card);
+        panel.Children.Add(LayoutChoice());
 
         var hide = new CheckBox { Content = L.T("启动时不再显示此窗口"), IsChecked = Settings.GetBool(HideAtStartKey, false), Margin = new Thickness(0, 18, 0, 0), Foreground = UiTheme.Muted };
         hide.Click += (_, _) => Settings.Set(HideAtStartKey, hide.IsChecked == true);
@@ -97,6 +99,77 @@ internal sealed class WelcomeWindow : Window
         startup.IsChecked = status.Enabled; startup.IsEnabled = status.CanChange;
         startupMessage.Text = status.Message ?? L.T("登录 Windows 后在后台运行，不打开欢迎窗口。");
         startupSettings.Visibility = status.Message == null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    // The two ways a wheel with many tools can look; the same setting as the tray menu's layout item.
+    private UIElement LayoutChoice()
+    {
+        var section = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
+        section.Children.Add(new TextBlock { Text = L.T("工具较多时的轮盘"), FontWeight = FontWeights.SemiBold, FontSize = 15, Foreground = UiTheme.Ink });
+        section.Children.Add(new TextBlock { Text = L.T("单个图片或视频的工具较多时适用；随时可在托盘菜单中更改。"), TextWrapping = TextWrapping.Wrap, Foreground = UiTheme.Muted, Margin = new Thickness(0, 2, 0, 8) });
+        var choices = new Grid();
+        choices.ColumnDefinitions.Add(new ColumnDefinition());
+        choices.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        choices.ColumnDefinitions.Add(new ColumnDefinition());
+        var merged = LayoutCard(L.T("合并相关工具"), L.T("相关工具合在一个窗口里，一个轮盘就够。"), Picture(false), !Catalog.TwoWheels, "merged");
+        var twoWheels = LayoutCard(L.T("两层轮盘"), L.T("先选类别，再在第二个轮盘里选工具。"), Picture(true), Catalog.TwoWheels, "twoWheels");
+        Grid.SetColumn(twoWheels, 2);
+        choices.Children.Add(merged);
+        choices.Children.Add(twoWheels);
+        section.Children.Add(choices);
+        return section;
+    }
+
+    private Button LayoutCard(string title, string text, UIElement picture, bool chosen, string value)
+    {
+        var row = new DockPanel();
+        DockPanel.SetDock(picture, Dock.Left);
+        row.Children.Add(picture);
+        var words = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        words.Children.Add(new TextBlock { Text = (chosen ? "✓ " : "") + title, FontWeight = FontWeights.SemiBold, Foreground = chosen ? UiTheme.Accent : UiTheme.Ink });
+        words.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = UiTheme.Muted, FontSize = 12, Margin = new Thickness(0, 2, 0, 0) });
+        row.Children.Add(words);
+        var button = new Button { Content = row, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(12, 10, 12, 10) };
+        if (chosen)
+        {
+            button.Background = new SolidColorBrush(Color.FromRgb(255, 244, 237));
+            button.BorderBrush = UiTheme.Accent;
+        }
+        button.Click += (_, _) => { Settings.Set(Catalog.LayoutKey, value); Rebuild(); };
+        return button;
+    }
+
+    // A small drawing of the layout: one wheel, or a category wheel leading to a second wheel.
+    private static UIElement Picture(bool twoWheels)
+    {
+        var canvas = new System.Windows.Controls.Canvas { Width = twoWheels ? 84 : 52, Height = 52 };
+        AddWheel(canvas, 26, 26, 25, twoWheels ? 5 : 8, twoWheels ? 1 : -1);
+        if (twoWheels)
+        {
+            canvas.Children.Add(new TextBlock { Text = "›", FontSize = 16, Foreground = UiTheme.Muted, Margin = new Thickness(53, 13, 0, 0) });
+            AddWheel(canvas, 72, 26, 12, 4, -1);
+        }
+        return canvas;
+    }
+
+    private static void AddWheel(System.Windows.Controls.Canvas canvas, double cx, double cy, double radius, int slices, int highlighted)
+    {
+        double inner = radius * 0.42, gap = 0.09;
+        for (int i = 0; i < slices; i++)
+        {
+            double a0 = 2 * Math.PI * i / slices - Math.PI / 2 + gap, a1 = 2 * Math.PI * (i + 1) / slices - Math.PI / 2 - gap;
+            Point P(double r, double a) => new(cx + r * Math.Cos(a), cy + r * Math.Sin(a));
+            var figure = new PathFigure { StartPoint = P(inner, a0), IsClosed = true };
+            figure.Segments.Add(new LineSegment(P(radius, a0), true));
+            figure.Segments.Add(new ArcSegment(P(radius, a1), new Size(radius, radius), 0, false, SweepDirection.Clockwise, true));
+            figure.Segments.Add(new LineSegment(P(inner, a1), true));
+            figure.Segments.Add(new ArcSegment(P(inner, a0), new Size(inner, inner), 0, false, SweepDirection.Counterclockwise, true));
+            canvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = new PathGeometry([figure]),
+                Fill = i == highlighted ? UiTheme.Accent : new SolidColorBrush(Color.FromRgb(222, 226, 222)),
+            });
+        }
     }
 
     private static UIElement Step(int number, string title, string text)
