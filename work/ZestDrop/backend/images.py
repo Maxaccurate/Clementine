@@ -163,8 +163,6 @@ def tool(path,action,params):
     elif action=='rotateImage': image=rotate(image,params)
     elif action=='resizeImage': image=imagetools.resize(image,params)
     elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),imagetools.watermark_layer(image.size,params))
-    elif action=='resizeImage': image=resize(image,params)
-    elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),watermark_layer(image.size,params))
     elif action=='editImage': image=edit(image,params)
     elif action=='frameImage': image=framed(image,params); fmt='png'
     elif action=='compress':

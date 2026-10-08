@@ -1,7 +1,6 @@
 from pathlib import Path
 import sys,json,os
 from PIL import Image
-from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from common import *
 import images,documents,media,archives,office,mediatools,imagetools
@@ -57,8 +56,11 @@ def execute(job,result_path):
         except OSError:pass
     progress('processing',0,Path(paths[0]).name)
     if grouped:
+        # Tools that turn the whole selection into one result.
+        together={'officeMergePDF':office.merge,'joinAudio':mediatools.join_audio,'createAnimation':imagetools.animation,'packArchive':archives.pack_archive,
+            'createCollage':images.collage,'createPDF':lambda p,o:documents.images_document(p,'pdf',o),'mergePDF':documents.merge,'joinVideos':media.join}
         try:
-            output=office.merge(paths,params) if action=='officeMergePDF' else mediatools.join_audio(paths,params) if action=='joinAudio' else imagetools.animation(paths,params) if action=='createAnimation' else archives.pack_archive(paths,params) if action=='packArchive' else images.collage(paths,params) if action=='createCollage' else documents.images_document(paths,'pdf',params) if action=='createPDF' else documents.merge(paths,params) if action=='mergePDF' else media.join(paths,params) if action=='joinVideos' else archives.convert(paths,action.split(':')[1],{**params,'_pack':action.startswith('pack:')})
+            output=together[action](paths,params) if action in together else archives.convert(paths,action.split(':')[1],{**params,'_pack':action.startswith('pack:')})
             files.append({'Input':paths[0],'Output':output,'Error':None})
         except Exception as error: files.append({'Input':paths[0],'Output':None,'Error':str(error)})
     else:
@@ -136,23 +138,20 @@ def playback(path,action,params,folder):
         ffmpeg([*args,'-shortest',*media.video_args('mp4'),target])
     elif kind=='audio':
         target=folder/'playback.wav';filters=[]
-        if action=='normalizeAudio':filters.append(f"loudnorm=I={number(params,'loudness',-16)}:LRA={number(params,'range',11)}:TP={number(params,'peak',-1.5)}")
-        if action=='audioChannels':
-            left=number(params,'leftGain',1);right=number(params,'rightGain',1);filters.append('aformat=channel_layouts=stereo');filters.append(f'pan=mono|c0={left*.5}*c0+{right*.5}*c1' if params.get('channels','mono')=='mono' else f'pan=stereo|c0={left}*c0|c1={right}*c1')
-        if action=='trimAudio' and truth(params.get('removeSilence','false')):filters+=['silenceremove=start_periods=1:start_threshold=-40dB','areverse','silenceremove=start_periods=1:start_threshold=-40dB','areverse']
+        if action=='normalizeAudio':filters.append(media.loudnorm(params))
+        if action=='audioChannels':filters+=media.channel_filters(params)
+        if action=='trimAudio' and truth(params.get('removeSilence','false')):filters+=media.SILENCE_TRIM
         args=['-ss',start,'-i',path,'-t',length,'-vn']
         if action=='redactAudio':
             raw=params.get('ranges','').strip();ranges=json.loads(raw) if raw else [{'start':number(params,'start',0),'end':number(params,'end',0)}]
             active=[(max(0,float(r['start'])-start),min(length,float(r['end'])-start)) for r in ranges if float(r['end'])>start and float(r['start'])<start+length]
             if active:
-                expression='+'.join(f'between(t,{a},{b})' for a,b in active)
-                graph=f"[0:a]asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo,volume=0:enable='{expression}'[speech];sine=frequency=1000:sample_rate=48000:duration={length},aformat=channel_layouts=stereo,volume='if({expression},0.15,0)':eval=frame[beep];[speech][beep]amix=inputs=2:normalize=0[a]"
-                args+=['-filter_complex',graph,'-map','[a]']
+                args+=['-filter_complex',media.beep_graph(active,length,'asetpts=PTS-STARTPTS,'),'-map','[a]']
         if filters:args+=['-af',','.join(filters)]
         ffmpeg([*args,'-c:a','pcm_s16le',target])
     else:
         target=folder/'playback.mp4';filters=[r'scale=min(1000\,iw):-2'];args=['-ss',start,'-i',path,'-t',length]
-        if action=='changeVideoSpeed':filters.insert(0,f"setpts=PTS/{number(params,'speed',2)}");args+=['-af',media.tempo(number(params,'speed',2))] if any(s['codec_type']=='audio' for s in info['streams']) else []
+        if action=='changeVideoSpeed':filters.insert(0,f"setpts=PTS/{number(params,'speed',2)}");args+=['-af',media.tempo(number(params,'speed',2))] if has_audio(info) else []
         if action=='cropVideo':
             w=int(number(params,'width',video_stream(info)['width']));h=int(number(params,'height',video_stream(info)['height']));ratio=params.get('ratio','free')
             if w>0 and h>0:w,h=fit_ratio(w,h,ratio)

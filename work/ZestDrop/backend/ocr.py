@@ -53,8 +53,8 @@ def run(path,action,params):
                 image=source[index].render(scale=200/72).to_pil(); target,size=prepared(image,temp,f'page-{index+1}.png'); files.append(str(target)); sizes.append(size)
             source.close(); pages=recognise(files,language); text='\n\n'.join(page_text(page) for page in pages)
             if output=='pdf':
-                doc=fitz.open(path)
-                if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError(T('PDF 密码错误'))
+                from pdftools import open_pdf
+                doc=open_pdf(path,params)
                 for index,page in enumerate(pages):
                     target=doc[index]; add_text_layer(target,page,target.rect.width/sizes[index][0],target.rect.height/sizes[index][1])
                 with output_file(path,'ocrPDF','.pdf') as state: doc.save(state['temp'],garbage=3,deflate=True)

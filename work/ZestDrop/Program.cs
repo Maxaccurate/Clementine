@@ -15,7 +15,7 @@ namespace ZestDrop;
 
 internal static class Program
 {
-    private static void SavePng(System.Windows.Media.Imaging.BitmapSource bitmap, string path)
+    internal static void SavePng(System.Windows.Media.Imaging.BitmapSource bitmap, string path)
     {
         var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
         encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
@@ -439,7 +439,7 @@ internal sealed class Resident : IDisposable
                 string folder = OutputFolder.Current ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "ZestDrop");
                 Directory.CreateDirectory(folder);
                 string file = Path.Combine(folder, "clipboard-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".png");
-                SavePicture(image, file);
+                Program.SavePng(image, file);
                 paths = [file];
             }
         }
@@ -447,14 +447,6 @@ internal sealed class Resident : IDisposable
         if (paths.Length == 0)
         { Notify(L.T("剪贴板里没有图片或文件"), L.T("先复制一张图片，或在资源管理器里复制文件。")); return; }
         OpenFiles(paths);
-    }
-
-    private static void SavePicture(System.Windows.Media.Imaging.BitmapSource image, string file)
-    {
-        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
-        using var stream = File.Create(file);
-        encoder.Save(stream);
     }
 
     private void ChooseOutputFolder()
@@ -497,7 +489,7 @@ internal sealed class Resident : IDisposable
         });
         var cancelAll = items.Items.Add(L.T("取消全部任务"), null, (_, _) => { foreach (var job in jobs.ToList()) CancelJob(job); });
         items.Items.Add(L.T("第三方组件许可"), null, (_, _) => OpenNotices());
-        items.Items.Add(L.T("最近输出所在文件夹"), null, (_, _) => { if (lastOutput != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{lastOutput}\"") { UseShellExecute = true }); });
+        items.Items.Add(L.T("最近输出所在文件夹"), null, (_, _) => { if (lastOutput != null) ExplorerIntegration.Reveal(lastOutput); });
         items.Items.Add(new Forms.ToolStripSeparator());
         items.Items.Add(L.T("处理剪贴板里的图片或文件…"), null, (_, _) => OpenFromClipboard());
         var recentMenu = new Forms.ToolStripMenuItem(L.T("最近输出"));
@@ -550,7 +542,7 @@ internal sealed class Resident : IDisposable
             RefreshStartupMenu();
             recentMenu.DropDownItems.Clear();
             foreach (string output in recent.Take(10))
-                recentMenu.DropDownItems.Add(Path.GetFileName(output) is { Length: > 0 } leaf ? leaf : output, null, (_, _) => { if (File.Exists(output) || Directory.Exists(output)) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{output}\"") { UseShellExecute = true }); });
+                recentMenu.DropDownItems.Add(Path.GetFileName(output) is { Length: > 0 } leaf ? leaf : output, null, (_, _) => { if (File.Exists(output) || Directory.Exists(output)) ExplorerIntegration.Reveal(output); });
             recentMenu.Enabled = recent.Count > 0;
             sameFolder.Checked = OutputFolder.Current == null;
             otherFolder.Text = OutputFolder.Current is { } chosen ? L.T("选择文件夹…") + "  (" + chosen + ")" : L.T("选择文件夹…");
@@ -718,22 +710,10 @@ internal sealed class Resident : IDisposable
             response = Path.Combine(session, "result.json");
             File.WriteAllText(request, JsonSerializer.Serialize(queued.Job));
             job.Sweep = new TempSweep(queued.Job.Paths, job.Token, OutputFolder.For(queued.Job));
-            using var watch = Backend.WatchProgress(response, progress);
-            var start = Backend.StartInfo("--job", request, response);
-            // The worker tags its staging files with this id, so cleanup after a cancel touches only this job's files.
-            start.Environment["ZESTDROP_JOB"] = job.Token;
-            using var process = Process.Start(start) ?? throw new IOException(L.T("无法启动本地处理进程"));
-            job.Worker = process;
-            var standardError = process.StandardError.ReadToEndAsync();
-            var standardOutput = process.StandardOutput.ReadToEndAsync();
             // No fixed time limit: long video encodes are legitimate, and every job can be cancelled.
-            try
-            { await process.WaitForExitAsync(job.Cancellation.Token); }
-            catch (OperationCanceledException) { if (!process.HasExited) process.Kill(true); throw; }
-            await standardOutput;
-            string engineError = await standardError;
-            if (process.ExitCode != 0 || !File.Exists(response))
-                throw new IOException(string.IsNullOrWhiteSpace(engineError) ? L.T("处理引擎未正常完成") : engineError);
+            await Backend.Run(["--job", request, response], job.Cancellation.Token, process => job.Worker = process, progress, job.Token);
+            if (!File.Exists(response))
+                throw new IOException(L.T("处理引擎未正常完成"));
             var result = JsonSerializer.Deserialize<BatchResult>(File.ReadAllText(response))!;
             queued.Completion?.TrySetResult(result);
             var success = result.Files.Where(x => x.Output != null).ToArray();
@@ -747,7 +727,8 @@ internal sealed class Resident : IDisposable
             }
             int failures = result.Files.Length - success.Length;
             Journal.Write("Completed", new { queued.Job.Action, count = result.Files.Length, success = success.Length, failures, errors = result.Files.Where(x => x.Error != null).Select(x => x.Error) });
-            string detail = failures == 0 ? L.T("新文件已保存到原文件夹。") : result.Files.First(x => x.Error != null).Error!;
+            string? folder = OutputFolder.For(queued.Job);
+            string detail = failures > 0 ? result.Files.First(x => x.Error != null).Error! : folder == null ? L.T("新文件已保存到原文件夹。") : L.F("新文件已保存到 {0}。", Path.GetFileName(folder.TrimEnd('\\')));
             string output = success.Length > 0 ? Path.GetFileName(success[^1].Output) ?? L.T("新文件已保存") : L.T("新文件已保存");
             bool cardShown = job.Card == null || taskIndicator.Finish(job.Card, failures == 0 ? L.T("处理完成") : L.F("成功 {0} 项 · 失败 {1} 项", success.Length, failures), failures == 0 ? output : detail);
             if (queued.Progress != null || failures > 0 || !cardShown)

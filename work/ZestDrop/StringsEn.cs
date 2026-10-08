@@ -142,6 +142,8 @@ internal static partial class L
         ["拼接视频"] = "Join videos",
         ["保存帧"] = "Save frames",
         ["分段"] = "Split",
+        ["旋转角度需在 −180° 到 +180° 之间。"] = "Rotation must be between −180° and +180°.",
+        ["新文件已保存到 {0}。"] = "New files were saved to {0}.",
         ["单个图片或视频的工具较多时适用；随时可在托盘菜单中更改。"] = "Used when a single picture or video has many tools. You can change it anytime from the tray menu.",
         ["相关工具合在一个窗口里，一个轮盘就够。"] = "Related tools share one window, so one wheel shows everything.",
         ["先选类别，再在第二个轮盘里选工具。"] = "Pick a category first, then the tool on a second wheel.",

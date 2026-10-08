@@ -52,8 +52,8 @@ def render_pdf(path,fmt,params):
 
 def pdf_word(path,params):
     import pymupdf as fitz
-    doc=fitz.open(path)
-    if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError(T('PDF 密码错误'))
+    from pdftools import open_pdf
+    doc=open_pdf(path,params)
     with output_file(path,'converted','.docx') as state:
         if any(page.get_text().strip() for page in doc):
             from pdf2docx import Converter
@@ -157,9 +157,7 @@ def tool(path,action,params):
     import pdftools
     if action in pdftools.ACTIONS: return pdftools.ACTIONS[action](path,params)
     if action=='compress':
-        import pymupdf as fitz
-        doc=fitz.open(path)
-        if doc.needs_pass and not doc.authenticate(params.get('password','')): raise ValueError(T('PDF 密码错误'))
+        doc=pdftools.open_pdf(path,params)
         quality=int(number(params,'quality',75)); edge=int(number(params,'maxEdge',2000)); target=int(number(params,'targetKB',0)*1024)
         seen=set()
         for page in doc:

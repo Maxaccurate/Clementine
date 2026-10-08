@@ -1,8 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using Microsoft.Win32;
 
@@ -14,11 +13,11 @@ internal static class ExplorerIntegration
     private const string Verb = "ZestDrop";
     private static readonly string[] Roots = [@"Software\Classes\*\shell\" + Verb, @"Software\Classes\Directory\shell\" + Verb];
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetCurrentPackageFullName(ref int length, StringBuilder? name);
-
     // The Store package cannot write to the real registry, so the entry is offered to the portable build only.
-    public static bool Available { get { int length = 0; return GetCurrentPackageFullName(ref length, null) == 15700; } }
+    public static bool Available => !StartupManager.IsPackaged;
+
+    // Opens Explorer with this file or folder selected.
+    public static void Reveal(string path) => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
 
     public static bool Enabled
     {

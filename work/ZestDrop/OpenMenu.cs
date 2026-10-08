@@ -16,12 +16,15 @@ internal static class OpenMenu
     {
         var menu = new ContextMenu { StaysOpen = false, FontFamily = UiTheme.Font, FontSize = 13 };
         foreach (var option in options)
-        {
-            var item = new MenuItem { Header = option.Label };
-            item.Click += (_, _) => submit(paths, option);
-            menu.Items.Add(item);
-        }
+            menu.Items.Add(Item(paths, option, submit));
         Open(menu);
+    }
+
+    private static MenuItem Item(string[] paths, Operation option, Action<string[], Operation> submit)
+    {
+        var item = new MenuItem { Header = option.Label };
+        item.Click += (_, _) => submit(paths, option);
+        return item;
     }
 
     public static void Show(string[] paths, Action<string[], Operation> submit)
@@ -33,19 +36,11 @@ internal static class OpenMenu
         {
             var convert = new MenuItem { Header = L.T("转换为") };
             foreach (var option in formats)
-            {
-                var item = new MenuItem { Header = option.Label };
-                item.Click += (_, _) => submit(paths, option);
-                convert.Items.Add(item);
-            }
+                convert.Items.Add(Item(paths, option, submit));
             menu.Items.Add(convert);
         }
         foreach (var option in tools)
-        {
-            var item = new MenuItem { Header = option.Label };
-            item.Click += (_, _) => submit(paths, option);
-            menu.Items.Add(item);
-        }
+            menu.Items.Add(Item(paths, option, submit));
         if (menu.Items.Count == 0)
             menu.Items.Add(new MenuItem { Header = L.T("无可用操作"), IsEnabled = false });
         Open(menu);

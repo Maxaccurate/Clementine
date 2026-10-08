@@ -75,6 +75,7 @@ def process(args,timeout=1800,cwd=None):
 def ffmpeg(args,cwd=None): return process([FFMPEG,'-hide_banner','-loglevel','error','-nostdin','-y',*args],timeout=None,cwd=cwd)
 def probe(path): return json.loads(process([FFPROBE,'-v','error','-show_format','-show_streams','-show_chapters','-of','json',path]))
 def video_stream(info): return next(x for x in info['streams'] if x['codec_type']=='video')
+def has_audio(info): return any(s['codec_type']=='audio' for s in info['streams'])
 def duration(info): return float(info['format'].get('duration') or next((x.get('duration') for x in info['streams'] if x.get('duration')),0))
 
 def output_stem(path,suffix):
@@ -149,7 +150,10 @@ def open_image(path,frame=None):
     profile=image.info.get('icc_profile')
     if profile:
         try:
+            # The converted picture starts with empty info; keep the EXIF and XMP so metadata can still be read and edited.
+            info={k:v for k,v in image.info.items() if k!='icc_profile'}
             image=ImageCms.profileToProfile(image,ImageCms.ImageCmsProfile(io.BytesIO(profile)),ImageCms.createProfile('sRGB'),outputMode='RGBA' if 'A' in image.getbands() else 'RGB')
+            image.info={**info,**image.info}
         except (ValueError,OSError): pass
     image.load(); result=image.copy(); image.close()
     result.info['source_frames']=frames; result.info['source_frame']=selected
@@ -157,6 +161,8 @@ def open_image(path,frame=None):
 
 def save_image(image,path,fmt,quality=90,metadata=None):
     from PIL import Image
+    # Metadata is written only when given: some encoders (HEIF) would otherwise copy the source's EXIF and XMP.
+    for key in ('exif','xmp','XML:com.adobe.xmp'): image.info.pop(key,None)
     fmt=fmt.lower(); mode={'jpg':'JPEG','jpeg':'JPEG','png':'PNG','webp':'WEBP','heic':'HEIF','tiff':'TIFF','tif':'TIFF','avif':'AVIF','bmp':'BMP'}[fmt]
     if mode in ('JPEG','BMP'):
         if 'A' in image.getbands():
@@ -165,6 +171,7 @@ def save_image(image,path,fmt,quality=90,metadata=None):
     options={'quality':int(quality)} if mode in ('JPEG','WEBP','HEIF','AVIF') else {}
     if mode=='PNG': options={'optimize':True}
     if mode=='TIFF': options={'compression':'tiff_deflate'}
+    if mode=='HEIF': options['exif']=None  # pillow_heif would otherwise copy the EXIF Pillow has cached for the image
     if metadata:
         if mode in ('JPEG','WEBP','PNG','HEIF','TIFF','AVIF'): options['exif']=metadata.tobytes()
     image.save(path,format=mode,**options)

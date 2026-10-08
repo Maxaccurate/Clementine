@@ -393,14 +393,10 @@ internal sealed class DropWheel : Window
         ring.Petals[index].Fill = face;
         ring.Petals[index].Stroke = outline;
         ring.Sidewalls[index].Fill = side;
-        foreach (var block in ((StackPanel)ring.Labels[index]).Children.OfType<TextBlock>().Take(1))
-            block.Foreground = text;
-        if (text == Brushes.White)
-            foreach (var block in ((StackPanel)ring.Labels[index]).Children.OfType<TextBlock>().Skip(1))
-                block.Foreground = Brushes.White;
-        else
-            foreach (var block in ((StackPanel)ring.Labels[index]).Children.OfType<TextBlock>().Skip(1))
-                block.Foreground = UiTheme.Muted;
+        // The title takes the given colour; a category's preview line stays muted unless the petal is selected.
+        var blocks = ((StackPanel)ring.Labels[index]).Children.OfType<TextBlock>().ToList();
+        for (int i = 0; i < blocks.Count; i++)
+            blocks[i].Foreground = i == 0 || text == Brushes.White ? text : UiTheme.Muted;
     }
 
     private void Highlight(Ring ring, int index)

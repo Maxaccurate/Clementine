@@ -38,6 +38,17 @@ def tempo(speed):
     while speed<.5: factors.append('atempo=0.5'); speed/=.5
     return ','.join([*factors,f'atempo={speed}'])
 
+# Shared with the playback preview (worker.py), so what is heard there is what gets saved.
+SILENCE_TRIM=['silenceremove=start_periods=1:start_threshold=-40dB','areverse','silenceremove=start_periods=1:start_threshold=-40dB','areverse']
+def loudnorm(params): return f"loudnorm=I={number(params,'loudness',-16)}:LRA={number(params,'range',11)}:TP={number(params,'peak',-1.5)}"
+def channel_filters(params):
+    left=number(params,'leftGain',1); right=number(params,'rightGain',1)
+    return ['aformat=channel_layouts=stereo',f'pan=mono|c0={left*.5}*c0+{right*.5}*c1' if params.get('channels','mono')=='mono' else f'pan=stereo|c0={left}*c0|c1={right}*c1']
+def beep_graph(ranges,length,prepare=''):
+    """Silences the given (start, end) ranges and plays a soft 1 kHz beep over them."""
+    expression='+'.join(f'between(t,{a},{b})' for a,b in ranges)
+    return f"[0:a]{prepare}aformat=sample_rates=48000:channel_layouts=stereo,volume=0:enable='{expression}'[speech];sine=frequency=1000:sample_rate=48000:duration={length},aformat=channel_layouts=stereo,volume='if({expression},0.15,0)':eval=frame[beep];[speech][beep]amix=inputs=2:normalize=0[a]"
+
 def metadata_args(params):
     args=[]
     if truth(params.get('remove','true')): return ['-map_metadata','-1','-map_metadata:s','-1','-map_metadata:c','-1']
@@ -107,7 +118,7 @@ def join(paths,params):
     for i,(path,info) in enumerate(zip(paths,infos)):
         args+=['-i',path]
         graph.append(f'[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,setpts=PTS-STARTPTS[v{i}]')
-        if any(x['codec_type']=='audio' for x in info['streams']): graph.append(f'[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,apad,atrim=duration={duration(info)},asetpts=PTS-STARTPTS[a{i}]')
+        if has_audio(info): graph.append(f'[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,apad,atrim=duration={duration(info)},asetpts=PTS-STARTPTS[a{i}]')
         else: graph.append(f'anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration={duration(info)}[a{i}]')
         inputs.append(f'[v{i}][a{i}]')
     graph.append(''.join(inputs)+f'concat=n={len(paths)}:v=1:a=1[outv][outa]')
@@ -148,7 +159,7 @@ def video_tool(path,action,params):
         if fmt in ('mp4','mov','mkv'): codec=['-c:v','libx264','-preset','medium','-crf',str(quality),'-c:a','aac','-b:a','128k','-pix_fmt','yuv420p']
         if target:
             total=target*8192/max(.1,duration(info))/1000
-            audio_bitrate=max(16,min(128,int(total*.2))) if any(s['codec_type']=='audio' for s in info['streams']) else 0
+            audio_bitrate=max(16,min(128,int(total*.2))) if has_audio(info) else 0
             bitrate=max(4,int(total*.88-audio_bitrate-8))
             codec=['-c:v','libx264','-b:v',f'{bitrate}k','-maxrate',f'{bitrate}k','-bufsize',f'{bitrate*2}k','-c:a','aac','-b:a',f'{max(8,audio_bitrate)}k','-pix_fmt','yuv420p']; fmt='mp4'
     elif action=='redactVideo':
@@ -156,7 +167,7 @@ def video_tool(path,action,params):
     else: raise ValueError(T('未知视频工具'))
     if action not in ('muteVideo','redactVideo'): vf.append('pad=ceil(iw/2)*2:ceil(ih/2)*2')
     if vf: args+=['-vf',','.join(vf)]
-    if af and any(x['codec_type']=='audio' for x in info['streams']): args+=['-af',','.join(af)]
+    if af and has_audio(info): args+=['-af',','.join(af)]
     with output_file(path,action,'.'+fmt) as state:
         ffmpeg([*args,*codec,*tail,state['temp']])
         target=int(number(params,'targetKB',0)*1024) if action=='compress' else 0
@@ -191,25 +202,21 @@ def audio_tool(path,action,params):
         target=number(params,'targetKB',0)
         if target and fmt not in ('flac','aiff','wav'):
             bitrate=max(32,int(target*8192/max(.1,duration(info))/1000*.85));params['bitrate']=str(min(int(params['bitrate']),bitrate))
-    elif action=='normalizeAudio': filters.append(f"loudnorm=I={number(params,'loudness',-16)}:LRA={number(params,'range',11)}:TP={number(params,'peak',-1.5)}")
+    elif action=='normalizeAudio': filters.append(loudnorm(params))
     elif action=='trimAudio':
         start=number(params,'start',0); end=number(params,'end',0) or duration(info)
         if start<0 or end<=start or end>duration(info)+.1: raise ValueError(T('起止时间超出音频范围'))
         args=['-ss',start,'-i',path,'-t',end-start]
-        if truth(params.get('removeSilence','false')): filters+=['silenceremove=start_periods=1:start_threshold=-40dB','areverse','silenceremove=start_periods=1:start_threshold=-40dB','areverse']
+        if truth(params.get('removeSilence','false')): filters+=SILENCE_TRIM
     elif action=='audioChannels':
-        mode=params.get('channels','mono'); left=number(params,'leftGain',1); right=number(params,'rightGain',1)
-        filters.append('aformat=channel_layouts=stereo')
-        filters.append(f'pan=mono|c0={left*.5}*c0+{right*.5}*c1' if mode=='mono' else f'pan=stereo|c0={left}*c0|c1={right}*c1')
+        filters+=channel_filters(params)
     elif action=='redactAudio':
         raw=params.get('ranges','').strip(); ranges=json.loads(raw) if raw else [{'start':number(params,'start',0),'end':number(params,'end',1)}]
         if not ranges:
             with output_file(path,action,'.'+fmt) as state: ffmpeg(['-i',path,'-vn',*audio_args(fmt,params),state['temp']])
             return state['output']
-        expression='+'.join(f'between(t,{float(r["start"])},{float(r["end"])})' for r in ranges)
         if any(float(r['start'])<0 or float(r['end'])<=float(r['start']) or float(r['end'])>duration(info)+.1 for r in ranges): raise ValueError(T('消音时间范围无效'))
-        graph=f"[0:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0:enable='{expression}'[speech];sine=frequency=1000:sample_rate=48000:duration={duration(info)},aformat=channel_layouts=stereo,volume='if({expression},0.15,0)':eval=frame[beep];[speech][beep]amix=inputs=2:normalize=0[a]"
-        args+=['-filter_complex',graph,'-map','[a]']
+        args+=['-filter_complex',beep_graph([(float(r['start']),float(r['end'])) for r in ranges],duration(info)),'-map','[a]']
     else: raise ValueError(T('未知音频工具'))
     if filters: args+=['-af',','.join(filters)]
     with output_file(path,action,'.'+fmt) as state:

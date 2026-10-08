@@ -107,16 +107,18 @@ def pack(folder,path,fmt):
         stored_rar(folder,path)
     else: raise ValueError(T('不支持的压缩包输出'))
 
+def copy_selection(paths,folder):
+    for path in paths:
+        path=Path(path); target=folder/path.name
+        if target.exists(): raise ValueError(T('选中文件有相同名称，请分开处理'))
+        if path.is_dir(): shutil.copytree(path,target,symlinks=False)
+        else: shutil.copy2(path,target)
+
 def convert(paths,fmt,params):
     with tempfile.TemporaryDirectory(prefix='zestdrop-archive-') as temp:
         folder=Path(temp)
         if not params.get('_pack') and len(paths)==1 and Path(paths[0]).suffix.lower() in ('.zip','.tar','.gz','.tgz','.rar','.7z'): extract_to(paths[0],folder)
-        else:
-            for path in paths:
-                path=Path(path); target=folder/path.name
-                if target.exists(): raise ValueError(T('选中文件有相同名称，请分开处理'))
-                if path.is_dir(): shutil.copytree(path,target,symlinks=False)
-                else: shutil.copy2(path,target)
+        else: copy_selection(paths,folder)
         extension='.tar.gz' if fmt=='gz' else '.'+fmt
         with output_file(paths[0],'packed' if params.get('_pack') else 'converted',extension) as state: pack(folder,state['temp'],fmt)
     return state['output']
@@ -131,12 +133,7 @@ def pack_archive(paths,params):
     if fmt not in ('zip','7z') or not 1<=level<=9 or not 0<=volume<=100000: raise ValueError(T('压缩设置无效'))
     if not SEVEN.exists(): raise ValueError(T('7z 打包需要本机 7-Zip'))
     with tempfile.TemporaryDirectory(prefix='zestdrop-archive-') as temp:
-        folder=Path(temp)/'content'; folder.mkdir()
-        for path in paths:
-            path=Path(path); target=folder/path.name
-            if target.exists(): raise ValueError(T('选中文件有相同名称，请分开处理'))
-            if path.is_dir(): shutil.copytree(path,target,symlinks=False)
-            else: shutil.copy2(path,target)
+        folder=Path(temp)/'content'; folder.mkdir(); copy_selection(paths,folder)
         options=['-sccUTF-8','-bd',f'-mx={level}']
         if secret: options+=[f'-p{secret}']+(['-mem=AES256'] if fmt=='zip' else ['-mhe=on'])
         if volume: options+=[f'-v{int(volume)}m']

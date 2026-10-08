@@ -15,8 +15,8 @@ internal static class OfficeBridge
     private static void Release(object? value) { if (value != null && Marshal.IsComObject(value)) try { Marshal.FinalReleaseComObject(value); } catch (InvalidComObjectException) { } }
     public static string Family(string input)
     {
-        string ext = Path.GetExtension(input).ToLowerInvariant();
-        return new[] { ".ppt", ".pptx", ".pptm", ".pps", ".ppsx", ".odp" }.Contains(ext) ? "PowerPoint" : new[] { ".doc", ".docx", ".docm", ".rtf", ".odt" }.Contains(ext) ? "Word" : "Excel";
+        string ext = Catalog.Extension(input);
+        return Catalog.OfficeSlides.Contains(ext) ? "PowerPoint" : Catalog.OfficeWords.Contains(ext) ? "Word" : "Excel";
     }
     public static bool Available(string family) => Type.GetTypeFromProgID(family + ".Application") != null;
     public static void Export(string input, string format, string output)

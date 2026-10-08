@@ -27,10 +27,14 @@ internal static class Backend
             info.ArgumentList.Add(arg);
         return info;
     }
-    public static async Task Run(string[] arguments, CancellationToken cancellation = default, Action<Process>? onStart = null, IProgress<JobProgress>? progress = null)
+    // jobToken tags the worker's staging files, so cleaning up after a cancel touches only this job's files.
+    public static async Task Run(string[] arguments, CancellationToken cancellation = default, Action<Process>? onStart = null, IProgress<JobProgress>? progress = null, string? jobToken = null)
     {
         using var watch = arguments.Length >= 3 && arguments[0] == "--job" ? WatchProgress(arguments[2], progress) : null;
-        using var process = Process.Start(StartInfo(arguments)) ?? throw new IOException(L.T("无法启动本地处理引擎"));
+        var start = StartInfo(arguments);
+        if (jobToken != null)
+            start.Environment["ZESTDROP_JOB"] = jobToken;
+        using var process = Process.Start(start) ?? throw new IOException(L.T("无法启动本地处理引擎"));
         onStart?.Invoke(process);
         var error = process.StandardError.ReadToEndAsync();
         var output = process.StandardOutput.ReadToEndAsync();
@@ -41,12 +45,17 @@ internal static class Backend
         if (process.ExitCode != 0)
         {
             string detail = await error.ConfigureAwait(false);
-            if (arguments.Length > 2 && File.Exists(arguments[2]))
+            // The engine writes its own message into the result file when it stops on an error.
+            try
             {
-                using var json = JsonDocument.Parse(File.ReadAllText(arguments[2]));
-                if (json.RootElement.TryGetProperty("Error", out var message))
-                    detail = message.GetString() ?? detail;
+                if (arguments.Length > 2 && File.Exists(arguments[2]))
+                {
+                    using var json = JsonDocument.Parse(File.ReadAllText(arguments[2]));
+                    if (json.RootElement.TryGetProperty("Error", out var message))
+                        detail = message.GetString() ?? detail;
+                }
             }
+            catch (Exception ex) when (ex is IOException or JsonException) { }
             throw new IOException(string.IsNullOrWhiteSpace(detail) ? L.T("本地引擎未完成处理") : detail);
         }
     }

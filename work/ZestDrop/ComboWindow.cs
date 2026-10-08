@@ -56,7 +56,7 @@ internal sealed class ComboWindow : Window
         saveButton.Foreground = Brushes.White;
         saveButton.Background = UiTheme.Accent;
         saveButton.BorderThickness = new Thickness(0);
-        revealButton = MakeButton(L.T("打开输出位置"), () => { if (savedOutput != null) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + savedOutput + "\"") { UseShellExecute = true }); return Task.CompletedTask; });
+        revealButton = MakeButton(L.T("打开输出位置"), () => { if (savedOutput != null) ExplorerIntegration.Reveal(savedOutput); return Task.CompletedTask; });
         revealButton.Visibility = Visibility.Collapsed;
         Content = UiTheme.Frame(this, Build());
         Loaded += async (_, _) => await Show(current);

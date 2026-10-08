@@ -45,11 +45,17 @@ internal sealed class WatchFolders : IDisposable
         }
     }
 
+    // "seen" stops the several events of one arrival from queuing the file twice. It is cleared once that arrival
+    // is handled, so a new file with the same name later on is processed again.
     private async Task Guarded(WatchRule rule, string path)
     {
+        lock (seen)
+            if (!seen.Add(path))
+                return;
         try
         { await Handle(rule, path); }
         catch (Exception ex) { Journal.Write("WatchFailed", new { rule.Folder, ex.Message }); }
+        finally { lock (seen) seen.Remove(path); }
     }
 
     private async Task Handle(WatchRule rule, string path)
@@ -59,9 +65,6 @@ internal sealed class WatchFolders : IDisposable
             return;
         if (Directory.Exists(path) || Catalog.Category(path) != rule.Kind)
             return;
-        lock (seen)
-            if (!seen.Add(path))
-                return;
         // A file that is still being copied or downloaded keeps growing or stays locked; wait until it settles.
         long last = -1;
         for (int attempt = 0; attempt < 600; attempt++)

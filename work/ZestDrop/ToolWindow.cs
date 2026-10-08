@@ -85,8 +85,9 @@ internal sealed class ToolWindow : Window
     public string SaveLabel { set => saveButton.Content = value; }
     public Task Start() => Initialize();
     private string ReadyText => Saved != null ? L.T("调整参数后点“应用这一步”。") : L.T("调整参数后保存；新文件保存在原目录。");
-    // Called by the host when it removes or closes this tool.
-    public void Release()
+    // Stops previews and playback and removes this tool's preview folder. Called when the window closes, or by the
+    // host when it removes or closes an embedded tool.
+    public async void Release()
     {
         closing.Cancel();
         previewCancellation?.Cancel();
@@ -94,6 +95,15 @@ internal sealed class ToolWindow : Window
         transport?.Dispose();
         player.Stop();
         player.Source = null;
+        // The player and the engine let go of the files a moment after they stop.
+        await Task.Delay(1000);
+        try
+        {
+            string root = Path.GetFullPath(Journal.DirectoryPath) + Path.DirectorySeparatorChar;
+            if (Path.GetFullPath(folder).StartsWith(root, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(folder).StartsWith("preview-") && Directory.Exists(folder))
+                Directory.Delete(folder, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     public ToolWindow(string[] paths, Operation operation, Func<ConversionJob, CancellationToken, IProgress<JobProgress>?, Task<BatchResult>> submit, Window? host = null)
@@ -125,24 +135,7 @@ internal sealed class ToolWindow : Window
         Loaded += async (_, _) => await Initialize();
         Closing += (_, e) => { if (saving != null) { e.Cancel = true; status.Text = L.T("处理中。请先点击取消，等待任务停止后关闭窗口。"); } };
         PreviewKeyDown += async (_, e) => { if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { e.Handled = true; await Save(); } };
-        Closed += async (_, _) =>
-        {
-            closing.Cancel();
-            previewCancellation?.Cancel();
-            previewDelay.Stop();
-            transport?.Dispose();
-            player.Stop();
-            player.Source = null;
-            await Task.Delay(1000);
-            try
-            {
-                string root = Path.GetFullPath(Journal.DirectoryPath) + Path.DirectorySeparatorChar;
-                if (Path.GetFullPath(folder).StartsWith(root, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(folder).StartsWith("preview-") && Directory.Exists(folder))
-                    Directory.Delete(folder, true);
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-        };
+        Closed += (_, _) => Release();
     }
     private UIElement Build()
     {
@@ -152,7 +145,7 @@ internal sealed class ToolWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var header = new StackPanel();
         header.Children.Add(new TextBlock { Text = operation.Label, FontSize = 26, FontWeight = FontWeights.SemiBold });
-        header.Children.Add(new TextBlock { Text = paths.Length == 1 ? Path.GetFileName(paths[0]) : (paths.Length == 1 ? L.T("已选 1 个文件") : L.F("已选 {0} 个文件", paths.Length)), Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 20) });
+        header.Children.Add(new TextBlock { Text = paths.Length == 1 ? Path.GetFileName(paths[0]) : L.F("已选 {0} 个文件", paths.Length), Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 20) });
         if (host != null)
         { header.Visibility = Visibility.Collapsed; root.Margin = new Thickness(0); }
         root.Children.Add(header);
@@ -283,9 +276,6 @@ internal sealed class ToolWindow : Window
         {
             left.Children.Add(new TextBlock { Text = L.T("在波形上拖动选择时段；可添加多个蜂鸣范围。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) });
             left.Children.Add(Button(L.T("清空蜂鸣范围"), () => { audioRanges.Clear(); regionList.Items.Clear(); Set("ranges", ""); rangeEdited = false; selection.Visibility = Visibility.Collapsed; status.Text = L.T("蜂鸣时段已清空。"); return Task.CompletedTask; }));
-        }
-        if (operation.Id == "redactAudio")
-        {
             left.Children.Add(regionList);
             left.Children.Add(Button(L.T("移除选中时段"), () => { if (regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, double> r) { audioRanges.Remove(r); regionList.Items.Remove(item); rangeEdited = audioRanges.Count > 0; } return Task.CompletedTask; }));
             regionList.SelectionChanged += (_, _) => { if (regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, double> r) { syncingRegion = true; Set("start", r["start"].ToString(CultureInfo.InvariantCulture)); Set("end", r["end"].ToString(CultureInfo.InvariantCulture)); syncingRegion = false; } };
@@ -495,7 +485,7 @@ internal sealed class ToolWindow : Window
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
         Grid.SetColumn(actions, 1);
         bottom.Children.Add(actions);
-        revealButton = Button(L.T("打开输出位置"), () => { if (lastOutput != null) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + lastOutput + "\"") { UseShellExecute = true }); return Task.CompletedTask; });
+        revealButton = Button(L.T("打开输出位置"), () => { if (lastOutput != null) ExplorerIntegration.Reveal(lastOutput); return Task.CompletedTask; });
         revealButton.Visibility = Visibility.Collapsed;
         actions.Children.Add(revealButton);
         copyButton = Button(L.T("复制结果"), () => { CopyResult(); return Task.CompletedTask; });
@@ -623,7 +613,7 @@ internal sealed class ToolWindow : Window
         if (Rotating && double.TryParse(values["angle"], NumberStyles.Float, CultureInfo.InvariantCulture, out double rotation))
         {
             if (!double.IsFinite(rotation) || rotation is < -180 or > 180)
-                throw new ArgumentException(L.English ? "Rotation must be between −180° and +180°." : "旋转角度需在 −180° 到 +180° 之间。");
+                throw new ArgumentException(L.T("旋转角度需在 −180° 到 +180° 之间。"));
             values["angle"] = RotationDial.BackendAngle(rotation).ToString("0.#", CultureInfo.InvariantCulture);
         }
         if (values.TryGetValue("ratio", out var selectedRatio) && selectedRatio != "custom")
@@ -1102,6 +1092,7 @@ internal sealed class ToolWindow : Window
         cancelButton.IsEnabled = true;
         status.Foreground = UiTheme.Muted;
         status.Text = L.T("处理期间可取消；原文件保留。");
+        BatchResult? applied = null;
         try
         {
             var result = await submit(job, saving.Token, busy);
@@ -1111,7 +1102,7 @@ internal sealed class ToolWindow : Window
             {
                 if (Presets.Supported(operation.Id)) Presets.SaveLast(operation.Id, PresetValues());
                 status.Text = L.T("已应用。");
-                Saved(result);
+                applied = result;
                 return;
             }
             if (success.Length > 0)
@@ -1121,7 +1112,11 @@ internal sealed class ToolWindow : Window
         }
         catch (OperationCanceledException) { status.Text = L.T("处理已取消，可调整参数后重新保存。"); }
         catch (Exception ex) { status.Text = L.T("保存未完成：") + ex.Message; status.Foreground = UiTheme.Accent; }
-        finally { saving.Dispose(); saving = null; bodyPanel.IsEnabled = true; saveButton.IsEnabled = true; cancelButton.Visibility = Visibility.Collapsed; }
+        finally
+        {
+            saving.Dispose(); saving = null; bodyPanel.IsEnabled = true; saveButton.IsEnabled = true; cancelButton.Visibility = Visibility.Collapsed;
+            if (applied != null) Saved?.Invoke(applied);
+        }
     }
     private async Task StepFrame(int direction)
     {

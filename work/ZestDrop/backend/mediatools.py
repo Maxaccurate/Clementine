@@ -4,7 +4,6 @@ from PIL import Image,ImageDraw,ImageFont
 from common import *
 import media
 
-def has_audio(info): return any(s['codec_type']=='audio' for s in info['streams'])
 
 def container(path):
     fmt=Path(path).suffix.lstrip('.').lower()
@@ -69,7 +68,6 @@ def subtitles_audio(path,params):
             else: graph=f'[1:a]volume={volume}[a]'
             maps=['-filter_complex',graph,'-map','0:v','-map','[a]','-t',str(total)]
         codec=media.video_args(fmt) if vf else ['-c:v','copy','-c:a','aac','-b:a','160k']
-        if sound and not vf: codec=['-c:v','copy','-c:a','aac','-b:a','160k']
         if vf: args+=['-vf',','.join(vf)]
         with output_file(path,'subtitlesAudio','.'+fmt) as state: ffmpeg([*args,*maps,*codec,state['temp']],cwd=temp)
     return state['output']
