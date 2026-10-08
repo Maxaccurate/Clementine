@@ -98,7 +98,6 @@ def preview(path,action,params,folder,paths=None):
         elif action=='cropImage': image=images.crop(image,params)
         elif action=='rotateImage': image=images.rotate(image,params,False)
         elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),imagetools.watermark_layer(image.size,params))
-        elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),imagetools.watermark_layer(image.size,params))
         elif action=='redactImage': image=images.redact(image,params)
         elif action=='frameImage': image=images.framed(image,params)
         elif action=='createCollage': image=images.collage(paths or [path],params,preview=True)
