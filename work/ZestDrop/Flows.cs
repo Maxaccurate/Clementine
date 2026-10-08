@@ -14,6 +14,7 @@ internal static class Flows
 {
     private const string Key = "flows";
     public const string Prefix = "flow:";
+    public const string MenuId = "flows:menu";
 
     public static List<Flow> Load()
     {

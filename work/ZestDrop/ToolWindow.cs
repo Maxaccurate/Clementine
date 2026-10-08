@@ -76,11 +76,39 @@ internal sealed class ToolWindow : Window
     private bool RefreshFrame => VisualPreview || HasTimeline && Catalog.Category(paths[0]) == "video";
     private Button? compareButton;
 
-    public ToolWindow(string[] paths, Operation operation, Func<ConversionJob, CancellationToken, IProgress<JobProgress>?, Task<BatchResult>> submit)
+    // Set when this tool is shown inside another window (a combined window); the tool then provides only its body.
+    private readonly Window? host;
+    public UIElement? Body { get; }
+    public bool Busy => saving != null;
+    // In a combined window, a successful save hands the result to the host instead of finishing here.
+    public Action<BatchResult>? Saved { get; set; }
+    public string SaveLabel { set => saveButton.Content = value; }
+    public Task Start() => Initialize();
+    private string ReadyText => Saved != null ? L.T("调整参数后点“应用这一步”。") : L.T("调整参数后保存；新文件保存在原目录。");
+    // Called by the host when it removes or closes this tool.
+    public void Release()
+    {
+        closing.Cancel();
+        previewCancellation?.Cancel();
+        previewDelay.Stop();
+        transport?.Dispose();
+        player.Stop();
+        player.Source = null;
+    }
+
+    public ToolWindow(string[] paths, Operation operation, Func<ConversionJob, CancellationToken, IProgress<JobProgress>?, Task<BatchResult>> submit, Window? host = null)
     {
         this.paths = paths;
         this.operation = operation;
         this.submit = submit;
+        this.host = host;
+        if (host != null)
+        {
+            previewDelay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(550) };
+            previewDelay.Tick += async (_, _) => { previewDelay.Stop(); await UpdatePreview(); };
+            Body = Build();
+            return;
+        }
         Title = operation.Label + " · " + Path.GetFileName(paths[0]);
         Width = 1040;
         Height = 800;
@@ -125,6 +153,8 @@ internal sealed class ToolWindow : Window
         var header = new StackPanel();
         header.Children.Add(new TextBlock { Text = operation.Label, FontSize = 26, FontWeight = FontWeights.SemiBold });
         header.Children.Add(new TextBlock { Text = paths.Length == 1 ? Path.GetFileName(paths[0]) : (paths.Length == 1 ? L.T("已选 1 个文件") : L.F("已选 {0} 个文件", paths.Length)), Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 20) });
+        if (host != null)
+        { header.Visibility = Visibility.Collapsed; root.Margin = new Thickness(0); }
         root.Children.Add(header);
         var body = new Grid();
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -339,7 +369,7 @@ internal sealed class ToolWindow : Window
                     "file:subtitle" => (L.T("选择字幕…"), L.T("字幕|*.srt;*.ass;*.ssa;*.vtt|所有文件|*.*")),
                     _ => (L.T("选择图片…"), L.T("图片|*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.heic;*.avif|所有文件|*.*"))
                 };
-                parameters.Children.Add(Button(pickLabel, () => { var dialog = new Microsoft.Win32.OpenFileDialog { Filter = pickFilter }; if (dialog.ShowDialog(this) == true) Set(field.Name, dialog.FileName); return Task.CompletedTask; }));
+                parameters.Children.Add(Button(pickLabel, () => { var dialog = new Microsoft.Win32.OpenFileDialog { Filter = pickFilter }; if (dialog.ShowDialog(host ?? this) == true) Set(field.Name, dialog.FileName); return Task.CompletedTask; }));
             }
         }
         void ShowField(string name, bool visible)
@@ -551,7 +581,7 @@ internal sealed class ToolWindow : Window
                 Set("pageOrder", string.Join(",", Enumerable.Range(1, pages)));
                 details.Text = L.F("共 {0} 页；调整列表或输入页码顺序。", pages);
             }
-            status.Text = imageFrame >= 0 ? L.T("此图片包含多个图像帧。仅导出当前帧，原始文件保留。") : L.T("调整参数后保存；新文件保存在原目录。");
+            status.Text = imageFrame >= 0 ? L.T("此图片包含多个图像帧。仅导出当前帧，原始文件保留。") : ReadyText;
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { status.Text = L.T("预览不可用：") + ex.Message + L.T("。仍可填写参数。"); }
@@ -751,7 +781,7 @@ internal sealed class ToolWindow : Window
     private string? PromptName()
     {
         var box = new TextBox { Padding = new Thickness(8), Margin = new Thickness(0, 0, 0, 12) };
-        var dialog = new Window { Title = L.T("预设名称"), Owner = this, Width = 340, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Background = Background, FontFamily = FontFamily };
+        var dialog = new Window { Title = L.T("预设名称"), Owner = host ?? this, Width = 340, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Background = Background, FontFamily = FontFamily };
         var ok = new Button { Content = L.T("保存"), IsDefault = true, Padding = new Thickness(18, 7, 18, 7), HorizontalAlignment = HorizontalAlignment.Right };
         ok.Click += (_, _) => dialog.DialogResult = true;
         var stack = new StackPanel { Margin = new Thickness(18) };
@@ -830,7 +860,7 @@ internal sealed class ToolWindow : Window
             previewVersion++;
             transport?.Pause();
             if (status.Text == L.T("更新效果中…"))
-                status.Text = L.T("调整参数后保存；新文件保存在原目录。");
+                status.Text = ReadyText;
         };
         cropFrame.Changed += () => WriteCropFields();
         cropFrame.DragEnded += () => { WriteCropFields(); transport?.InvalidateEffect(); };
@@ -1077,6 +1107,13 @@ internal sealed class ToolWindow : Window
             var result = await submit(job, saving.Token, busy);
             var success = result.Files.Where(f => f.Output != null).ToArray();
             var failures = result.Files.Where(f => f.Error != null).ToArray();
+            if (Saved != null && success.Length > 0 && failures.Length == 0)
+            {
+                if (Presets.Supported(operation.Id)) Presets.SaveLast(operation.Id, PresetValues());
+                status.Text = L.T("已应用。");
+                Saved(result);
+                return;
+            }
             if (success.Length > 0)
             { lastOutput = success[^1].Output; revealButton.Visibility = Visibility.Visible; copyButton.Visibility = Visibility.Visible; if (Presets.Supported(operation.Id)) Presets.SaveLast(operation.Id, PresetValues()); }
             status.Text = failures.Length == 0 ? L.F("已保存 {0} 项：{1}", success.Length, Path.GetFileName(lastOutput)) : L.F("成功 {0} 项，失败 {1} 项：{2}", success.Length, failures.Length, failures[0].Error);

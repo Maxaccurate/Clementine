@@ -182,7 +182,7 @@ internal sealed class DropWheel : Window
     private void Populate()
     {
         var all = paths.Length <= 200 ? Catalog.Options(paths, tools) : [];
-        groups = tools && paths.Length > 0 ? Catalog.Grouped(all, Catalog.Category(paths[0])) : null;
+        groups = tools && paths.Length > 0 && Catalog.TwoWheels ? Catalog.Grouped(all, Catalog.Category(paths[0])) : null;
         openGroup = -1;
         RenderSecond(null);
         operations = groups == null ? all : groups.Select((g, i) => new Operation("__group:" + i, g.Label)).ToList();

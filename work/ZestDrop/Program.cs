@@ -158,7 +158,8 @@ internal static class Program
         if (args.Length >= 3 && args[0] == "--debug-tool")
         {
             var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
-            testApp.Run(new ToolWindow(args.Skip(2).ToArray(), Catalog.Definition(args[1], Catalog.Category(args[2])), Backend.Execute));
+            var definition = Catalog.Definition(args[1], Catalog.Category(args[2]));
+            testApp.Run(definition.Parts != null ? new ComboWindow(args.Skip(2).ToArray(), definition, Backend.Execute) : new ToolWindow(args.Skip(2).ToArray(), definition, Backend.Execute));
             return 0;
         }
         if (args.Length == 5 && args[0] == "--debug-wheel-render")
@@ -285,7 +286,7 @@ internal static class Journal
             var cutoff = DateTime.UtcNow.AddDays(-1);
             foreach (var folder in new DirectoryInfo(DirectoryPath).EnumerateDirectories())
             {
-                if (folder.Name.Split('-')[0] is not ("job" or "preview" or "qa" or "cli") || folder.LastWriteTimeUtc > cutoff)
+                if (folder.Name.Split('-')[0] is not ("job" or "preview" or "qa" or "cli" or "combo") || folder.LastWriteTimeUtc > cutoff)
                     continue;
                 try
                 { folder.Delete(true); }
@@ -507,6 +508,12 @@ internal sealed class Resident : IDisposable
         locationMenu.DropDownItems.AddRange([sameFolder, otherFolder]);
         items.Items.Add(locationMenu);
         items.Items.Add(L.T("监视文件夹…"), null, (_, _) => ShowWatchWindow());
+        var layoutMenu = new Forms.ToolStripMenuItem(L.T("工具较多时的轮盘"));
+        var mergedLayout = new Forms.ToolStripMenuItem(L.T("合并相关工具"), null, (_, _) => Settings.Set(Catalog.LayoutKey, "merged")) { Checked = !Catalog.TwoWheels };
+        var twoWheelLayout = new Forms.ToolStripMenuItem(L.T("两层轮盘"), null, (_, _) => Settings.Set(Catalog.LayoutKey, "twoWheels")) { Checked = Catalog.TwoWheels };
+        layoutMenu.DropDownItems.AddRange([mergedLayout, twoWheelLayout]);
+        layoutMenu.DropDownOpening += (_, _) => { mergedLayout.Checked = !Catalog.TwoWheels; twoWheelLayout.Checked = Catalog.TwoWheels; };
+        items.Items.Add(layoutMenu);
         items.Items.Add(L.T("流程…"), null, (_, _) => { if (flowWindow == null) { flowWindow = new FlowWindow(() => { }); flowWindow.Closed += (_, _) => flowWindow = null; flowWindow.Show(); } flowWindow.Activate(); });
         Forms.ToolStripMenuItem? explorerItem = null;
         if (ExplorerIntegration.Available)
@@ -648,6 +655,18 @@ internal sealed class Resident : IDisposable
 
     private void BeginOperation(string[] paths, Operation operation)
     {
+        if (operation.Parts != null)
+        {
+            var combined = new ComboWindow(paths, operation, EnqueueTool);
+            combined.Show();
+            combined.Activate();
+            return;
+        }
+        if (operation.Id == Flows.MenuId)
+        {
+            OpenMenu.ShowList(paths, Flows.For(paths), BeginOperation);
+            return;
+        }
         if (operation.Id.StartsWith(Flows.Prefix))
         {
             try

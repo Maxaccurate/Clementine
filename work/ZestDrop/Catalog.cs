@@ -6,7 +6,8 @@ using System.Linq;
 namespace ZestDrop;
 
 internal sealed record Field(string Name, string Label, string Default = "", string Kind = "text", string[]? Choices = null);
-internal sealed record Operation(string Id, string Label, bool Tool = false, Field[]? Fields = null, bool Ordered = false);
+// Parts: the tools a combined entry opens together. Chain: each part works on the previous parts' result.
+internal sealed record Operation(string Id, string Label, bool Tool = false, Field[]? Fields = null, bool Ordered = false, string[]? Parts = null, bool Chain = false);
 
 internal sealed record ToolGroup(string Label, List<Operation> Items);
 
@@ -24,6 +25,39 @@ internal static class Catalog
         ["document"] = [("页面", ["splitPDF", "mergePDF", "organizePDF", "extractPdfImages", "pdfNumbers"]), ("安全与识别", ["pdfPassword", "ocrPDF", "watermark", "removeMetadata"]),
             ("输出与整理", ["compress", "packArchive"])],
     };
+
+    // When a single file has ten or more tools, related tools share one window. The older two-wheel layout stays
+    // available (tray menu) and is used instead when chosen.
+    public const string LayoutKey = "wheelLayout";
+    public static bool TwoWheels => Settings.GetString(LayoutKey) == "twoWheels";
+    private static readonly Dictionary<string, (string Id, string Label, string[] Parts, bool Chain)[]> Merged = new()
+    {
+        ["image"] = [("merge:cropRotate", "裁剪与旋转", ["cropImage", "rotateImage"], true), ("merge:sizeCompress", "尺寸与压缩", ["resizeImage", "compress"], true),
+            ("merge:frameWatermark", "背景与水印", ["frameImage", "watermark"], true)],
+        ["video"] = [("merge:trimSplit", "剪辑时段与分段", ["trimVideo", "splitVideo"], false), ("merge:speedEffects", "速度与效果", ["changeVideoSpeed", "videoEffects"], true),
+            ("merge:cropRotateVideo", "画面裁剪与旋转", ["cropVideo", "rotateVideo"], true), ("merge:resolutionCompress", "分辨率与压缩", ["videoSettings", "compress"], true),
+            ("merge:soundSubtitles", "声音与字幕", ["muteVideo", "subtitlesAudio"], true), ("merge:watermarkRedact", "水印与打码", ["watermark", "redactVideo"], true),
+            ("merge:framesGif", "保存帧与 GIF", ["videoSnapshots", "videoToGif"], false)],
+    };
+
+    // Replaces each tool that belongs to a combined entry by that entry (in the place of its first tool).
+    private static List<string> Merge(string kind, List<string> ids)
+    {
+        if (TwoWheels || ids.Count < 10 || !Merged.TryGetValue(kind, out var plan))
+            return ids;
+        var result = new List<string>();
+        foreach (string id in ids)
+        {
+            var entry = plan.FirstOrDefault(m => m.Parts.Contains(id) && m.Parts.All(ids.Contains));
+            string chosen = entry.Id ?? id;
+            if (!result.Contains(chosen))
+                result.Add(chosen);
+        }
+        return result;
+    }
+
+    private static Operation? MergedDefinition(string id) =>
+        Merged.Values.SelectMany(x => x).Where(m => m.Id == id).Select(m => new Operation(m.Id, L.T(m.Label), true, null, false, m.Parts, m.Chain)).FirstOrDefault();
 
     public static List<ToolGroup>? Grouped(List<Operation> operations, string kind)
     {
@@ -85,8 +119,15 @@ internal static class Catalog
             var ids = Tools(paths[0], paths.Length).ToList();
             foreach (string path in paths.Skip(1))
                 ids = ids.Intersect(Tools(path, paths.Length)).ToList();
+            if (paths.Length == 1)
+                ids = Merge(Category(paths[0]), ids);
             var chosen = ids.Select(id => Definition(id, Category(paths[0]))).ToList();
-            chosen.AddRange(Flows.For(paths));
+            var flows = Flows.For(paths);
+            // Flows follow the tools; if they would make the wheel too crowded they share one entry.
+            if (!TwoWheels && chosen.Count + flows.Count >= 10 && flows.Count > 1)
+                chosen.Add(new Operation(Flows.MenuId, L.T("流程…"), true));
+            else
+                chosen.AddRange(flows);
             return chosen;
         }
         if (PackingOnly(paths))
@@ -135,7 +176,7 @@ internal static class Catalog
     private static Field[] Positions => [C("position", L.T("位置"), "bottomRight", "bottomRight", "bottomCenter", "bottomLeft", "middleRight", "center", "middleLeft", "topRight", "topCenter", "topLeft")];
     private static Field[] Times => [N("start", L.T("开始（秒 / 时:分:秒）"), "0"), N("end", L.T("结束（0 表示结尾）"), "0")];
     private static Field[] Ratio => [C("ratio", L.T("比例"), "free", "free", "1:1", "4:3", "16:9", "9:16", "custom"), N("ratioWidth", L.T("宽比例"), "3"), N("ratioHeight", L.T("高比例"), "2")];
-    public static Operation Definition(string id, string kind) => id switch
+    public static Operation Definition(string id, string kind) => MergedDefinition(id) ?? id switch
     {
         "officePdf" => new(id, L.T("选页导出 PDF"), true, [T("pageOrder", L.T("导出页码（逗号分隔，留空全部）"))]),
         "officeMergePDF" => new(id, L.T("合并为 PDF"), true, [], true),
