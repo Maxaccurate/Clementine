@@ -8,6 +8,7 @@
     <Compile Include="../ZestDrop/Backend.cs" Link="Backend.cs"/>
     <Compile Include="../ZestDrop/ActivityIndicator.cs" Link="ActivityIndicator.cs"/>
     <Compile Include="../ZestDrop/UiTheme.cs" Link="UiTheme.cs"/>
+    <Compile Include="../ZestDrop/ContinuousFrame.cs" Link="ContinuousFrame.cs"/>
     <Compile Include="../ZestDrop/AppIcon.cs" Link="AppIcon.cs"/>
     <Compile Include="../ZestDrop/DragShortcutTracker.cs" Link="DragShortcutTracker.cs"/>
     <Compile Include="../ZestDrop/MediaSegment.cs" Link="MediaSegment.cs"/>
@@ -17,6 +18,10 @@
     <Compile Include="../ZestDrop/FloatingWheel.cs" Link="FloatingWheel.cs"/>
     <Compile Include="../ZestDrop/JobCard.cs" Link="JobCard.cs"/>
     <Compile Include="../ZestDrop/Settings.cs" Link="Settings.cs"/>
+    <Compile Include="../ZestDrop/StartupManager.cs" Link="StartupManager.cs"/>
+    <Compile Include="../ZestDrop/CropMath.cs" Link="CropMath.cs"/>
+    <Compile Include="../ZestDrop/CropFrame.cs" Link="CropFrame.cs"/>
+    <Compile Include="../ZestDrop/BusyLine.cs" Link="BusyLine.cs"/>
     <Compile Include="../ZestDrop/WelcomeWindow.cs" Link="WelcomeWindow.cs"/>
     <Compile Include="../ZestDrop/TaskIndicatorWindow.cs" Link="TaskIndicatorWindow.cs"/>
     <Compile Include="../ZestDrop/ProcessTreePause.cs" Link="ProcessTreePause.cs"/>
@@ -25,5 +30,8 @@
     <Compile Include="../ZestDrop/JobValidation.cs" Link="JobValidation.cs"/>
     <EmbeddedResource Include="../ZestDrop/assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />
     <Resource Include="../ZestDrop/assets/fonts/SourceHanSansCN-Medium.otf" Link="assets/fonts/SourceHanSansCN-Medium.otf" />
+    <Compile Include="../ZestDrop/Flows.cs" Link="Flows.cs"/>
+    <Compile Include="../ZestDrop/Presets.cs" Link="Presets.cs"/>
+    <Compile Include="../ZestDrop/OutputFolder.cs" Link="OutputFolder.cs"/>
   </ItemGroup>
 </Project>

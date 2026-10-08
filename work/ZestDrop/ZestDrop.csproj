@@ -9,7 +9,9 @@
     <FileVersion>0.1.2.0</FileVersion>
     <Title>ZestDrop</Title>
     <Description>Drag. Drop. Convert. Desktop file tools for Windows.</Description>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <DefineConstants>$(DefineConstants);PACKAGED_STARTUP</DefineConstants>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
@@ -18,6 +20,8 @@
     <ApplicationIcon>assets/zestdrop.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- The app has its own English and Chinese text; the other languages only add .NET framework strings for dialogs it never shows. -->
+    <SatelliteResourceLanguages>en;zh-Hans</SatelliteResourceLanguages>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="assets/zestdrop.ico" LogicalName="ZestDrop.AppIcon" />

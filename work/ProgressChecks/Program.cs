@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 internal static class Checks
 {
@@ -33,16 +34,16 @@ internal static class Checks
             var wheel=new DropWheel((_,_)=>{});
             try
             {
-                wheel.Preview([path],false,"convert:jpg");var actions=Catalog.Options([path],false);var hit=typeof(DropWheel).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Instance)!;
-                for(int i=0;i<actions.Count;i++){double angle=-Math.PI/2+i*2*Math.PI/actions.Count;Require((int)hit.Invoke(wheel,[new Point(190+119*Math.Cos(angle),190+119*Math.Sin(angle))])! == i);}
-                Require((int)hit.Invoke(wheel,[new Point(190,190)])! == -1);Require((int)hit.Invoke(wheel,[new Point(190,130)])! == -1);Require((int)hit.Invoke(wheel,[new Point(1,1)])! == -1);
+                wheel.Preview([path],false,"convert:jpg");var actions=Catalog.Options([path],false);var hit=typeof(DropWheel).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Static)!;var ring=typeof(DropWheel).GetField("first",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(wheel);
+                for(int i=0;i<actions.Count;i++){double angle=-Math.PI/2+i*2*Math.PI/actions.Count;Require((int)hit.Invoke(null,[ring!,new Point(190+119*Math.Cos(angle),190+119*Math.Sin(angle)),65d,172d])! == i);}
+                Require((int)hit.Invoke(null,[ring!,new Point(190,190),65d,172d])! == -1);Require((int)hit.Invoke(null,[ring!,new Point(190,130),65d,172d])! == -1);Require((int)hit.Invoke(null,[ring!,new Point(1,1),65d,172d])! == -1);
             }
             finally{wheel.Close();File.Delete(path);}
         });
         Check("wheel mode changes keep the dragged file and valid tool sectors",()=>
         {
             string path=Path.Combine(Path.GetTempPath(),"zestdrop-wheel-"+Guid.NewGuid().ToString("N")+".png");File.WriteAllText(path,"fixture");var wheel=new DropWheel((_,_)=>{});
-            try{wheel.Preview([path],false,"convert:jpg");wheel.ChangeMode(true);Require(wheel.HasFileDrag&&wheel.ToolsMode);var actions=Catalog.Options([path],true);var hit=typeof(DropWheel).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Instance)!;for(int i=0;i<actions.Count;i++){double angle=-Math.PI/2+i*2*Math.PI/actions.Count;Require((int)hit.Invoke(wheel,[new Point(190+119*Math.Cos(angle),190+119*Math.Sin(angle))])! == i);}}
+            try{wheel.Preview([path],false,"convert:jpg");wheel.ChangeMode(true);Require(wheel.HasFileDrag&&wheel.ToolsMode);var all=Catalog.Options([path],true);var groups=Catalog.Grouped(all,"image");var actions=groups==null?all:groups.Select((g,i)=>new Operation("__group:"+i,g.Label)).ToList();var hit=typeof(DropWheel).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Static)!;var ring=typeof(DropWheel).GetField("first",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(wheel);for(int i=0;i<actions.Count;i++){double angle=-Math.PI/2+i*2*Math.PI/actions.Count;Require((int)hit.Invoke(null,[ring!,new Point(190+119*Math.Cos(angle),190+119*Math.Sin(angle)),65d,172d])! == i);}}
             finally{wheel.Close();File.Delete(path);}
         });
         Check("trim start handle cannot cross end",()=>Require(TrimRange.Start(90,60,120)<60));
@@ -363,7 +364,7 @@ internal static class Checks
                 Require(english.Contains("Welcome to ZestDrop") && english.Contains("Drag files") && english.Contains("Press Shift") && english.Contains("Got it"));
                 Require(english.Any(t => t.Contains("notification area")) && english.Any(t => t.Contains("never connects to the internet")));
                 Require(english.Contains("English") && english.Contains("简体中文"));
-                var box = FindAll<CheckBox>(window).Single();
+                var box = FindAll<CheckBox>(window).Single(c => Equals(c.Content, L.T("启动时不再显示此窗口")));
                 Require(box.IsChecked == false);
                 box.IsChecked = true;
                 box.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
@@ -371,7 +372,7 @@ internal static class Checks
                 // Changing the language rebuilds the open window, and the checkbox still reflects the saved choice.
                 L.Language = "zh"; // the same setter the language buttons and the tray menu use
                 var chinese = Texts(window);
-                Require(chinese.Contains("欢迎使用 ZestDrop") && chinese.Contains("知道了") && FindAll<CheckBox>(window).Single().IsChecked == true);
+                Require(chinese.Contains("欢迎使用 ZestDrop") && chinese.Contains("知道了") && FindAll<CheckBox>(window).Single(c => Equals(c.Content, L.T("启动时不再显示此窗口"))).IsChecked == true);
                 window.Close();
             }
             finally
@@ -380,6 +381,217 @@ internal static class Checks
                 L.UseForSession("zh");
                 try { File.Delete(file); } catch (IOException) { }
             }
+        });
+        Check("welcome startup option synchronizes with its provider and keeps the welcome preference separate", () =>
+        {
+            var startupProvider = new MemoryStartupProvider();
+            StartupManager.ProviderOverride = startupProvider;
+            bool hideWelcome = Settings.GetBool(WelcomeWindow.HideAtStartKey, false);
+            var window = new WelcomeWindow();
+            try
+            {
+                var checkbox = FindAll<CheckBox>(window).Single(c => Equals(c.Content, L.T("开机自启")));
+                Require(checkbox.IsChecked == false && checkbox.IsEnabled);
+                checkbox.IsChecked = true; checkbox.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Require(startupProvider.Enabled && checkbox.IsChecked == true);
+                Require(Settings.GetBool(WelcomeWindow.HideAtStartKey, false) == hideWelcome);
+                StartupManager.SetAsync(false).GetAwaiter().GetResult();
+                Require(checkbox.IsChecked == false);
+                startupProvider.Blocked = true;
+                StartupManager.SetAsync(true).GetAwaiter().GetResult();
+                Require(checkbox.IsChecked == false && !checkbox.IsEnabled);
+                Require(Texts(window).Any(t => t.Contains("Windows 已禁用")));
+            }
+            finally { window.Close(); StartupManager.ProviderOverride = null; }
+        });
+        string[] ratioNames = ["4:3", "16:9", "1:1", "9:16", "3:2", "21:9", "2.35:1", "7:3", "5:4"];
+        var allHandles = new[] { CropHandle.Left, CropHandle.Right, CropHandle.Top, CropHandle.Bottom, CropHandle.TopLeft, CropHandle.TopRight, CropHandle.BottomLeft, CropHandle.BottomRight };
+        bool Inside(CropRect r, int w, int h) => r.X >= 0 && r.Y >= 0 && r.Width >= 1 && r.Height >= 1 && r.Right <= w && r.Bottom <= h;
+        // Fixed seed: the sweep is large but always the same, so a failure can be reproduced.
+        CropRect RandomCrop(Random rng, int w, int h, CropRatio? ratio, out int min)
+        {
+            min = CropMath.MinSize(w, h);
+            var raw = new CropRect(rng.Next(0, w), rng.Next(0, h), rng.Next(min, w + 1), rng.Next(min, h + 1));
+            return CropMath.Constrain(raw, w, h, ratio, min);
+        }
+        Check("crop moves keep their size and stay inside the picture", () =>
+        {
+            var rng = new Random(11);
+            for (int i = 0; i < 4000; i++)
+            {
+                int w = rng.Next(40, 5000), h = rng.Next(40, 5000);
+                var start = RandomCrop(rng, w, h, null, out _);
+                var moved = CropMath.Move(start, rng.NextDouble() * 9000 - 4500, rng.NextDouble() * 9000 - 4500, w, h);
+                if (moved.Width != start.Width || moved.Height != start.Height || !Inside(moved, w, h)) throw new Exception($"{start} in {w}x{h} became {moved}");
+            }
+        });
+        Check("free resizing moves only the dragged sides, never leaves the picture and never gets too small", () =>
+        {
+            var rng = new Random(12);
+            for (int i = 0; i < 6000; i++)
+            {
+                int w = rng.Next(40, 5000), h = rng.Next(40, 5000);
+                var start = RandomCrop(rng, w, h, null, out int min);
+                var handle = allHandles[rng.Next(allHandles.Length)];
+                var next = CropMath.Resize(start, handle, rng.NextDouble() * 9000 - 4500, rng.NextDouble() * 9000 - 4500, w, h, null, min);
+                bool left = handle is CropHandle.Left or CropHandle.TopLeft or CropHandle.BottomLeft, right = handle is CropHandle.Right or CropHandle.TopRight or CropHandle.BottomRight;
+                bool top = handle is CropHandle.Top or CropHandle.TopLeft or CropHandle.TopRight, bottom = handle is CropHandle.Bottom or CropHandle.BottomLeft or CropHandle.BottomRight;
+                string why = $"{handle} on {start} in {w}x{h} gave {next}";
+                if (!Inside(next, w, h) || next.Width < min || next.Height < min) throw new Exception(why);
+                if (!left && next.X != start.X || !right && next.Right != start.Right || !top && next.Y != start.Y || !bottom && next.Bottom != start.Bottom) throw new Exception("moved a side it was not holding: " + why);
+            }
+        });
+        Check("resizing with a locked ratio keeps the ratio, the opposite side or corner, and the picture bounds", () =>
+        {
+            var rng = new Random(13);
+            for (int i = 0; i < 9000; i++)
+            {
+                int w = rng.Next(60, 5000), h = rng.Next(60, 5000);
+                var ratio = CropRatio.Parse(ratioNames[rng.Next(ratioNames.Length)])!.Value;
+                var start = RandomCrop(rng, w, h, ratio, out int min);
+                var handle = allHandles[rng.Next(allHandles.Length)];
+                var next = CropMath.Resize(start, handle, rng.NextDouble() * 9000 - 4500, rng.NextDouble() * 9000 - 4500, w, h, ratio, min);
+                bool left = handle is CropHandle.Left or CropHandle.TopLeft or CropHandle.BottomLeft, right = handle is CropHandle.Right or CropHandle.TopRight or CropHandle.BottomRight;
+                bool top = handle is CropHandle.Top or CropHandle.TopLeft or CropHandle.TopRight, bottom = handle is CropHandle.Bottom or CropHandle.BottomLeft or CropHandle.BottomRight;
+                bool corner = (left || right) && (top || bottom);
+                string why = $"{handle} @ {ratio.A}:{ratio.B} on {start} in {w}x{h} gave {next}";
+                if (!Inside(next, w, h)) throw new Exception("left the picture: " + why);
+                if (!CropMath.Conforms(next.Width, next.Height, ratio)) throw new Exception("lost the ratio: " + why);
+                if (left && next.Right != start.Right || right && next.X != start.X) throw new Exception("moved the fixed side: " + why);
+                if (corner && (top && next.Bottom != start.Bottom || bottom && next.Y != start.Y)) throw new Exception("moved the fixed corner: " + why);
+                if (!corner && (left || right) && Math.Abs(next.Y + next.Height / 2.0 - (start.Y + start.Height / 2.0)) > 1 && next.Y != 0 && next.Bottom != h) throw new Exception("drifted off centre: " + why);
+                if (!corner && (top || bottom) && Math.Abs(next.X + next.Width / 2.0 - (start.X + start.Width / 2.0)) > 1 && next.X != 0 && next.Right != w) throw new Exception("drifted off centre: " + why);
+                if (next.Width < min - 1 || next.Height < min - 1) throw new Exception("too small: " + why);
+            }
+        });
+        Check("typed values and ratio changes always give a valid crop; a typed side dictates the other", () =>
+        {
+            var rng = new Random(14);
+            for (int i = 0; i < 6000; i++)
+            {
+                int w = rng.Next(60, 5000), h = rng.Next(60, 5000), min = CropMath.MinSize(w, h);
+                var ratio = rng.Next(3) == 0 ? (CropRatio?)null : CropRatio.Parse(ratioNames[rng.Next(ratioNames.Length)]);
+                var typed = new CropRect(rng.Next(-300, w + 300), rng.Next(-300, h + 300), rng.Next(min, w + 300), rng.Next(min, h + 300));
+                var keep = (CropKeep)rng.Next(3);
+                var result = CropMath.Constrain(typed, w, h, ratio, min, keep);
+                string why = $"{typed} in {w}x{h} keep {keep} ratio {ratio} gave {result}";
+                if (!Inside(result, w, h)) throw new Exception("outside: " + why);
+                if (ratio is { } r && !CropMath.Conforms(result.Width, result.Height, r)) throw new Exception("lost the ratio: " + why);
+                if (ratio == null && (result.Width != Math.Clamp(typed.Width, min, w) || result.Height != Math.Clamp(typed.Height, min, h))) throw new Exception("changed a free size: " + why);
+            }
+            // Typing a width keeps the width and follows with the height.
+            var typedWidth = CropMath.Constrain(new CropRect(100, 100, 800, 999), 2560, 1440, CropRatio.Parse("4:3"), 16, CropKeep.Width);
+            Require(typedWidth.Width == 800 && typedWidth.Height == 600 && typedWidth.X == 100 && typedWidth.Y == 100);
+            // Choosing a ratio shrinks the frame about its own centre.
+            var shrunk = CropMath.Constrain(new CropRect(300, 100, 1200, 800), 1920, 1080, CropRatio.Parse("4:3"), 16);
+            Require(shrunk.Height == 800 && shrunk.Width == 1067 && shrunk.X == 366);
+        });
+        Check("the frame handles are found at the corners, sides and inside, and nowhere else", () =>
+        {
+            var frame = new CropFrame();
+            frame.Measure(new Size(600, 350));
+            frame.Arrange(new Rect(0, 0, 600, 350));
+            frame.SetSource(1920, 1080);
+            var image = frame.ImageViewRect;
+            Require(Math.Abs(image.Width - 600) < .01 && Math.Abs(image.Height - 337.5) < .01 && Math.Abs(image.Top - 6.25) < .01);
+            frame.SetCrop(new CropRect(480, 270, 960, 540));
+            var c = frame.CropViewRect;
+            Require(Math.Abs(c.Left - 150) < .01 && Math.Abs(c.Width - 300) < .01);
+            Require(frame.HitTest(new Point(c.Left + c.Width / 2, c.Top + c.Height / 2)) == CropHandle.Move);
+            Require(frame.HitTest(new Point(c.Left + 3, c.Top + 3)) == CropHandle.TopLeft);
+            Require(frame.HitTest(new Point(c.Right - 3, c.Bottom - 3)) == CropHandle.BottomRight);
+            Require(frame.HitTest(new Point(c.Left + 3, c.Bottom - 3)) == CropHandle.BottomLeft);
+            Require(frame.HitTest(new Point(c.Left + c.Width / 2, c.Top + 3)) == CropHandle.Top);
+            Require(frame.HitTest(new Point(c.Right - 3, c.Top + c.Height / 2)) == CropHandle.Right);
+            Require(frame.HitTest(new Point(c.Left - 4, c.Top + c.Height / 2)) == CropHandle.Left);
+            Require(frame.HitTest(new Point(5, 5)) == CropHandle.None && frame.HitTest(new Point(c.Left - 40, c.Top + 50)) == CropHandle.None);
+            // Only the frame takes mouse hits; clicks elsewhere fall through to what is underneath.
+            Require(VisualTreeHelper.HitTest(frame, new Point(c.Left + 20, c.Top + 20)) != null && VisualTreeHelper.HitTest(frame, new Point(5, 5)) == null);
+        });
+        Check("dragging the frame moves and resizes it, reports changes, and keeps a locked ratio", () =>
+        {
+            var frame = new CropFrame();
+            frame.Measure(new Size(600, 350));
+            frame.Arrange(new Rect(0, 0, 600, 350));
+            frame.SetSource(1920, 1080);
+            int started = 0, changed = 0, ended = 0;
+            frame.DragStarted += () => started++;
+            frame.Changed += () => changed++;
+            frame.DragEnded += () => ended++;
+            Require(frame.Crop == new CropRect(0, 0, 1920, 1080) && !frame.IsDragging);
+            Require(!frame.BeginDrag(new Point(300, 1)) || frame.IsDragging); // the top edge of the picture is grabbable
+            frame.EndDrag();
+            started = changed = ended = 0;
+            // Pull the bottom-right corner in by 100 x 50 view pixels (320 x 160 source pixels).
+            var corner = new Point(frame.CropViewRect.Right - 3, frame.CropViewRect.Bottom - 3);
+            Require(frame.BeginDrag(corner) && frame.IsDragging);
+            frame.DragTo(new Point(corner.X - 100, corner.Y - 50));
+            Require(frame.Crop == new CropRect(0, 0, 1600, 920));
+            frame.DragTo(new Point(corner.X - 100, corner.Y - 50));
+            Require(changed == 1); // dragging to the same place changes nothing
+            frame.EndDrag();
+            Require(started == 1 && ended == 1 && !frame.IsDragging);
+            // Move it: grab the middle and drag right by 62.5 view pixels (200 source pixels; there is room for 320).
+            var middle = new Point(frame.CropViewRect.Left + frame.CropViewRect.Width / 2, frame.CropViewRect.Top + frame.CropViewRect.Height / 2);
+            Require(frame.BeginDrag(middle));
+            frame.DragTo(new Point(middle.X + 62.5, middle.Y));
+            frame.EndDrag();
+            Require(frame.Crop == new CropRect(200, 0, 1600, 920));
+            // Locked ratio: resize and the result keeps 4:3 to within a pixel.
+            frame.Ratio = CropRatio.Parse("4:3");
+            frame.SetCrop(CropMath.Constrain(frame.Crop, 1920, 1080, frame.Ratio, frame.MinSize));
+            var br = new Point(frame.CropViewRect.Right - 3, frame.CropViewRect.Bottom - 3);
+            Require(frame.BeginDrag(br));
+            frame.DragTo(new Point(br.X - 37, br.Y - 11));
+            frame.EndDrag();
+            Require(CropMath.Conforms(frame.Crop.Width, frame.Crop.Height, frame.Ratio!.Value) && Inside(frame.Crop, 1920, 1080));
+        });
+        Check("the busy line stays away from quick work, shows for slow work, and never flashes", () =>
+        {
+            var line = new BusyLine { ShowDelay = TimeSpan.FromMilliseconds(120), MinVisible = TimeSpan.FromMilliseconds(260) };
+            using (line.Begin())
+                Pump(40);
+            Pump(300);
+            Require(!line.IsShown && line.Visibility == Visibility.Collapsed); // finished before the delay: nothing was ever shown
+            var slow = line.Begin();
+            Pump(60);
+            Require(!line.IsShown);
+            Pump(160);
+            Require(line.IsShown && line.Visibility == Visibility.Visible);
+            slow.Dispose();
+            Require(line.IsShown); // it has only been up a moment, so it stays a little longer
+            Pump(450);
+            Require(!line.IsShown && line.Visibility == Visibility.Collapsed);
+        });
+        Check("overlapping work shares one busy line, and ending a session twice is harmless", () =>
+        {
+            var line = new BusyLine { ShowDelay = TimeSpan.Zero, MinVisible = TimeSpan.FromMilliseconds(30) };
+            var first = line.Begin();
+            var second = line.Begin();
+            Require(line.IsShown);
+            first.Dispose();
+            first.Dispose();
+            Pump(120);
+            Require(line.IsShown); // the second job is still running
+            second.Dispose();
+            Pump(300);
+            Require(!line.IsShown);
+            using (line.Begin())
+                Require(line.IsShown); // a fresh job after a double dispose still works
+        });
+        Check("batch progress turns the busy line into a bar; a single job keeps it moving", () =>
+        {
+            var line = new BusyLine { ShowDelay = TimeSpan.Zero };
+            line.Measure(new Size(400, 3));
+            line.Arrange(new Rect(0, 0, 400, 3));
+            using var session = line.Begin();
+            Require(line.Fraction == null);
+            session.Report(new JobProgress("processing", 0, 4, "a"));
+            Require(line.Fraction == null); // nothing finished yet
+            session.Report(new JobProgress("processing", 2, 4, "b"));
+            Require(line.Fraction is { } half && Math.Abs(half - .5) < .001);
+            session.Report(new JobProgress("processing", 0, 1, "c"));
+            Require(line.Fraction == null);
         });
         // End to end with the real worker and FFmpeg. Needs the portable runtime: set ZESTDROP_APP to outputs/ZestDrop.
         string? app = Environment.GetEnvironmentVariable("ZESTDROP_APP");
@@ -429,6 +641,83 @@ internal static class Checks
                 try { Directory.Delete(root, true); } catch (IOException) { }
             }
         });
+        // The frame must be saved as shown. This feeds frames the UI can produce to the real backend (needs the portable runtime).
+        if (app != null) Check("the backend saves every frame the crop UI can produce at exactly the size shown", () =>
+        {
+            string root = Path.Combine(Path.GetTempPath(), "zestdrop-cropcheck-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                var rng = new Random(21);
+                var cases = new List<object[]>();
+                var shown = new List<(int Width, int Height)>();
+                void Add(CropRect crop, string name, int imageWidth, int imageHeight) { cases.Add([crop.X, crop.Y, crop.Width, crop.Height, name]); shown.Add((crop.Width, crop.Height)); }
+                for (int i = 0; i < 2400; i++)
+                {
+                    int w = rng.Next(60, 6000), h = rng.Next(60, 6000);
+                    string name = ratioNames[rng.Next(ratioNames.Length)];
+                    var ratio = CropRatio.Parse(name)!.Value;
+                    int min = CropMath.MinSize(w, h);
+                    var start = RandomCrop(rng, w, h, ratio, out _);
+                    CropRect crop = (i % 4) switch
+                    {
+                        0 => start,
+                        1 => CropMath.Resize(start, allHandles[rng.Next(allHandles.Length)], rng.NextDouble() * 6000 - 3000, rng.NextDouble() * 6000 - 3000, w, h, ratio, min),
+                        2 => CropMath.Constrain(new CropRect(rng.Next(0, w), rng.Next(0, h), rng.Next(min, w + 1), rng.Next(min, h + 1)), w, h, ratio, min, CropKeep.Width),
+                        _ => CropMath.Constrain(new CropRect(rng.Next(0, w), rng.Next(0, h), rng.Next(min, w + 1), rng.Next(min, h + 1)), w, h, ratio, min, CropKeep.Height)
+                    };
+                    Add(crop, name, w, h);
+                }
+                // The case from the report: typing 856 x 657 at 4:3 used to show 657 but save 642.
+                Add(CropMath.Constrain(new CropRect(0, 0, 856, 657), 2560, 1440, CropRatio.Parse("4:3"), 16), "4:3", 2560, 1440);
+                Require(shown[^1] == (856, 642));
+                string script = Path.Combine(root, "check.py"), input = Path.Combine(root, "cases.json"), output = Path.Combine(root, "sizes.json");
+                File.WriteAllText(script, """
+                    import sys, json
+                    sys.path.insert(0, sys.argv[1])
+                    from common import fit_ratio
+                    import images
+                    from PIL import Image
+                    cases = json.load(open(sys.argv[2]))
+                    fitted, saved = [], []
+                    for index, (x, y, w, h, ratio) in enumerate(cases):
+                        fitted.append(list(fit_ratio(w, h, ratio)))
+                        if index % 8 == 0:  # the real crop function, on a stand-in picture just big enough
+                            picture = Image.new('L', (x + w, y + h))
+                            saved.append(list(images.crop(picture, {'x': str(x), 'y': str(y), 'width': str(w), 'height': str(h), 'ratio': ratio}).size))
+                        else:
+                            saved.append(None)
+                    json.dump({'fitted': fitted, 'saved': saved}, open(sys.argv[3], 'w'))
+                    """);
+                File.WriteAllText(input, JsonSerializer.Serialize(cases));
+                var start2 = new System.Diagnostics.ProcessStartInfo(Path.Combine(app, "runtime", "python", "python.exe")) { CreateNoWindow = true, UseShellExecute = false, RedirectStandardError = true };
+                foreach (string argument in new[] { script, Path.Combine(app, "backend"), input, output })
+                    start2.ArgumentList.Add(argument);
+                using (var python = System.Diagnostics.Process.Start(start2)!)
+                {
+                    string error = python.StandardError.ReadToEnd();
+                    if (!python.WaitForExit(180000) || python.ExitCode != 0)
+                        throw new Exception("python failed: " + error);
+                }
+                using var result = JsonDocument.Parse(File.ReadAllText(output));
+                int saves = 0;
+                for (int i = 0; i < shown.Count; i++)
+                {
+                    var fit = result.RootElement.GetProperty("fitted")[i];
+                    if (fit[0].GetInt32() != shown[i].Width || fit[1].GetInt32() != shown[i].Height)
+                        throw new Exception($"case {i} {JsonSerializer.Serialize(cases[i])}: the frame shows {shown[i]} but the backend fits it to {fit}");
+                    var saved = result.RootElement.GetProperty("saved")[i];
+                    if (saved.ValueKind == JsonValueKind.Array)
+                    {
+                        saves++;
+                        if (saved[0].GetInt32() != shown[i].Width || saved[1].GetInt32() != shown[i].Height)
+                            throw new Exception($"case {i} {JsonSerializer.Serialize(cases[i])}: the frame shows {shown[i]} but crop saved {saved}");
+                    }
+                }
+                Require(saves > 250);
+            }
+            finally { try { Directory.Delete(root, true); } catch (IOException) { } }
+        });
         File.WriteAllText(args[0],JsonSerializer.Serialize(new{passed=checks.Count-failed,failed,checks},new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine($"passed={checks.Count-failed}, failed={failed}");return failed==0?0:1;
     }
     private static string JobValidationMessage()
@@ -443,6 +732,15 @@ internal static class Checks
         foreach (var child in LogicalTreeHelper.GetChildren(root)) if (child is DependencyObject node) found.AddRange(FindAll<T>(node));
         return found;
     }
+    // Lets timers and animations run for a while without blocking, as the real window does.
+    private static void Pump(int milliseconds)
+    {
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+        timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+        timer.Start();
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
     private static List<string> Texts(DependencyObject root)
     {
         var found = new List<string>();
@@ -450,6 +748,12 @@ internal static class Checks
         if (root is ContentControl { Content: string label }) found.Add(label);
         foreach (var child in LogicalTreeHelper.GetChildren(root)) if (child is DependencyObject node) found.AddRange(Texts(node));
         return found;
+    }
+    private sealed class MemoryStartupProvider : IStartupProvider
+    {
+        public bool Enabled, Blocked;
+        public System.Threading.Tasks.Task<StartupStatus> GetAsync() => System.Threading.Tasks.Task.FromResult(new StartupStatus(Enabled, !Blocked, Blocked ? "Windows 已禁用自启" : null));
+        public System.Threading.Tasks.Task<StartupStatus> SetAsync(bool enabled) { Enabled = !Blocked && enabled; return GetAsync(); }
     }
     private sealed class Reporter(Action<JobProgress> callback):IProgress<JobProgress>{public void Report(JobProgress value)=>callback(value);}
 }

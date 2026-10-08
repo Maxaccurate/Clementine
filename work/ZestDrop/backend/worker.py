@@ -1,8 +1,10 @@
 from pathlib import Path
-import sys,json,traceback,io
+import sys,json,os
+from PIL import Image
+from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from common import *
-import images,documents,media,archives,office
+import images,documents,media,archives,office,mediatools,imagetools
 
 def one(path,action,params):
     kind=category(path)
@@ -14,7 +16,11 @@ def one(path,action,params):
         if kind=='document': return documents.convert(path,fmt,params)
         if kind=='office':return office.convert(path,fmt,params)
         return archives.convert([path],fmt,params)
+    if action=='flow': return run_flow(path,params)
     if action=='extractArchive': return archives.extract(path,params)
+    if action in ('ocrImage','ocrPDF'):
+        import ocr
+        return ocr.run(path,action,params)
     if kind=='office':return office.edit_metadata(path,params) if action=='removeMetadata' else office.selected_pdf(path,params)
     if kind=='image': return images.tool(path,action,params)
     if kind=='video': return media.video_tool(path,action,params)
@@ -22,10 +28,27 @@ def one(path,action,params):
     if kind=='document': return documents.tool(path,action,params)
     raise ValueError(T('此文件不支持所选工具'))
 
+def run_flow(path,params):
+    """Several tools in a row: each step works on the previous result, and only the last result is kept."""
+    steps=json.loads(params.get('steps','[]'))
+    if not steps: raise ValueError(T('这个流程没有步骤'))
+    made=[]; current=path
+    try:
+        for step in steps:
+            output=one(current,step['action'],dict(step.get('params') or {}))
+            if Path(output).is_dir(): raise ValueError(T('流程中的步骤不能生成多个文件'))
+            if made: Path(made[-1]).unlink(missing_ok=True)
+            made.append(output); current=output
+    except Exception:
+        for output in made: Path(output).unlink(missing_ok=True)
+        raise
+    return current
+
 def execute(job,result_path):
     paths=job['Paths']; action=job['Action']; params=job.get('Parameters') or {}
+    if params.get('_outputDir'): os.environ['ZESTDROP_OUTPUT_DIR']=params['_outputDir']  # a watch folder keeps its results in its own sub-folder
     files=[]
-    grouped=action.startswith('pack:') or action in ('createPDF','createCollage','mergePDF','joinVideos','officeMergePDF') or action.startswith('convert:') and len(paths)>1 and all(category(p)=='archive' and Path(p).suffix.lower() not in ('.zip','.tar','.gz','.tgz','.rar') for p in paths)
+    grouped=action.startswith('pack:') or action in ('createPDF','createCollage','mergePDF','joinVideos','officeMergePDF','joinAudio','createAnimation','packArchive') or action.startswith('convert:') and len(paths)>1 and all(category(p)=='archive' and Path(p).suffix.lower() not in ('.zip','.tar','.gz','.tgz','.rar') for p in paths)
     total=1 if grouped else len(paths)
     def progress(phase,processed,current=None):
         # Progress is best-effort: the app may be reading the file at the moment we replace it.
@@ -35,7 +58,7 @@ def execute(job,result_path):
     progress('processing',0,Path(paths[0]).name)
     if grouped:
         try:
-            output=office.merge(paths,params) if action=='officeMergePDF' else images.collage(paths,params) if action=='createCollage' else documents.images_document(paths,'pdf',params) if action=='createPDF' else documents.merge(paths,params) if action=='mergePDF' else media.join(paths,params) if action=='joinVideos' else archives.convert(paths,action.split(':')[1],{**params,'_pack':action.startswith('pack:')})
+            output=office.merge(paths,params) if action=='officeMergePDF' else mediatools.join_audio(paths,params) if action=='joinAudio' else imagetools.animation(paths,params) if action=='createAnimation' else archives.pack_archive(paths,params) if action=='packArchive' else images.collage(paths,params) if action=='createCollage' else documents.images_document(paths,'pdf',params) if action=='createPDF' else documents.merge(paths,params) if action=='mergePDF' else media.join(paths,params) if action=='joinVideos' else archives.convert(paths,action.split(':')[1],{**params,'_pack':action.startswith('pack:')})
             files.append({'Input':paths[0],'Output':output,'Error':None})
         except Exception as error: files.append({'Input':paths[0],'Output':None,'Error':str(error)})
     else:
@@ -73,6 +96,9 @@ def preview(path,action,params,folder,paths=None):
         image=open_image(path,params.get('imageFrame'))
         if action=='editImage': image=images.edit(image,params)
         elif action=='cropImage': image=images.crop(image,params)
+        elif action=='rotateImage': image=images.rotate(image,params,False)
+        elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),imagetools.watermark_layer(image.size,params))
+        elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),imagetools.watermark_layer(image.size,params))
         elif action=='redactImage': image=images.redact(image,params)
         elif action=='frameImage': image=images.framed(image,params)
         elif action=='createCollage': image=images.collage(paths or [path],params,preview=True)
@@ -81,6 +107,7 @@ def preview(path,action,params,folder,paths=None):
         info=probe(path); t=max(0,min(number(params,'time',0)+number(params,'frame',0)/(number(params,'fps',30)),max(0,duration(info)-.04)))
         target=folder/'live-preview.png'; raw=folder/'source-frame.png'; ffmpeg(['-ss',t,'-i',path,'-frames:v','1',raw]); image=open_image(raw)
         if action=='cropVideo': image=images.crop(image,params)
+        elif action=='rotateVideo': image=images.rotate(image,{'expand':'expand',**params},False)
         elif action=='redactVideo':
             regions=[r for r in rects(params,*image.size) if float(r.get('start',0))<=t<=(float(r.get('end',0)) or duration(info))]
             if regions:image=images.redact(image,{**params,'regions':json.dumps(regions)})
@@ -131,6 +158,7 @@ def playback(path,action,params,folder):
             w=int(number(params,'width',video_stream(info)['width']));h=int(number(params,'height',video_stream(info)['height']));ratio=params.get('ratio','free')
             if w>0 and h>0:w,h=fit_ratio(w,h,ratio)
             filters.insert(0,f"crop={w}:{h}:{int(number(params,'x',0))}:{int(number(params,'y',0))}")
+        if action=='rotateVideo':filters[0:0]=media.rotation_filters(params,False)
         if action=='muteVideo':args+=['-an']
         if action=='redactVideo':
             regions=rects(params,int(video_stream(info)['width']),int(video_stream(info)['height']))

@@ -1,11 +1,10 @@
 from pathlib import Path
-import csv,io,json,tempfile,zipfile,xml.etree.ElementTree as ET
+import csv,json,tempfile,zipfile,xml.etree.ElementTree as ET
 from common import *
 
 PRESENTATIONS={'.ppt','.pptx','.pptm','.pps','.ppsx','.odp'}
 WORDS={'.doc','.docx','.docm','.rtf','.odt'}
 SHEETS={'.xls','.xlsx','.xlsm','.xlsb','.ods','.csv','.tsv'}
-OFFICE_EXT=PRESENTATIONS|WORDS|SHEETS
 
 def family(path):
     ext=Path(path).suffix.lower()

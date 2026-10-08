@@ -154,6 +154,8 @@ def merge(paths,params):
     writer.close(); return state['output']
 
 def tool(path,action,params):
+    import pdftools
+    if action in pdftools.ACTIONS: return pdftools.ACTIONS[action](path,params)
     if action=='compress':
         import pymupdf as fitz
         doc=fitz.open(path)

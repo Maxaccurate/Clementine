@@ -35,7 +35,23 @@ def python_runtime():
     with zipfile.ZipFile(package) as archive:archive.extractall(location)
     next(location.glob('python*._pth')).write_text('python313.zip\n.\nLib/site-packages\nimport site\n',encoding='utf8')
     subprocess.run([sys.executable,'-m','pip','install','--disable-pip-version-check','--only-binary=:all:','--python-version','3.13','--platform','win_amd64','--implementation','cp','--abi','cp313','--target',str(location/'Lib/site-packages'),'-r',str(ROOT/'requirements-runtime.txt')],check=True)
+    prune_python(location/'Lib/site-packages')
     print('Portable Python ready',flush=True)
+
+# Files that are only needed to build against or test a package, never to run it.
+PRUNE_DIRS={'tests','test','mupdf-devel','f2py','_pyinstaller'}
+PRUNE_FILES=('*.pyi','*.c','*.h','*.lib','*.pxd','*.pyx','cv2/opencv_videoio_ffmpeg*.dll')  # the last is OpenCV's own video reader; only cv2.erode and denoising are used
+
+def prune_python(site):
+    freed=0
+    for path in sorted(site.rglob('*'),key=lambda p:len(p.parts),reverse=True):
+        if path.is_dir() and path.name in PRUNE_DIRS:
+            freed+=sum(f.stat().st_size for f in path.rglob('*') if f.is_file());shutil.rmtree(path)
+    if (site/'bin').is_dir():freed+=sum(f.stat().st_size for f in (site/'bin').iterdir());shutil.rmtree(site/'bin')  # console-script launchers
+    for pattern in PRUNE_FILES:
+        for path in list(site.rglob(pattern)):
+            if path.is_file():freed+=path.stat().st_size;path.unlink()
+    print(f'Pruned {freed/2**20:.1f} MB of build-only files from Python packages',flush=True)
 
 def ffmpeg_runtime():
     folder=BASE/'ffmpeg';folder.mkdir(exist_ok=True)
@@ -59,7 +75,9 @@ def sevenzip_runtime(directory):
     print('7-Zip ready',flush=True)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--sevenzip-dir',help='Directory containing 7z.exe, 7z.dll and License.txt');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--sevenzip-dir',help='Directory containing 7z.exe, 7z.dll and License.txt')
+    parser.add_argument('--prune-only',action='store_true',help='Only remove build-only files from the existing Python packages');args=parser.parse_args()
+    if args.prune_only:prune_python(BASE/'python/Lib/site-packages');sys.exit()
     if os.name!='nt':parser.error('The application and portable runtime preparation require Windows.')
     CACHE.mkdir(parents=True,exist_ok=True);BASE.mkdir(parents=True,exist_ok=True)
     sevenzip_runtime(args.sevenzip_dir)

@@ -8,5 +8,7 @@
     <Compile Include="../ZestDrop/Catalog.cs" Link="Catalog.cs"/>
     <Compile Include="../ZestDrop/JobValidation.cs" Link="JobValidation.cs"/>
     <Compile Include="../ZestDrop/OfficeBridge.cs" Link="OfficeBridge.cs"/>
+    <Compile Include="../ZestDrop/Flows.cs" Link="Flows.cs"/>
+    <Compile Include="../ZestDrop/Presets.cs" Link="Presets.cs"/>
   </ItemGroup>
 </Project>

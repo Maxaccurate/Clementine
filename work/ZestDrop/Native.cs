@@ -7,7 +7,9 @@ namespace ZestDrop;
 internal static class Native
 {
     [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();

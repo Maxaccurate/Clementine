@@ -14,7 +14,7 @@ internal sealed class TempSweep
 {
     private readonly string prefix;
     private readonly Dictionary<string, HashSet<string>> baseline = new(StringComparer.OrdinalIgnoreCase);
-    public TempSweep(IEnumerable<string> paths, string? token = null)
+    public TempSweep(IEnumerable<string> paths, string? token = null, string? outputFolder = null)
     {
         prefix = ".zestdrop-" + (string.IsNullOrEmpty(token) ? "" : token + "-");
         foreach (string path in paths)
@@ -26,6 +26,9 @@ internal sealed class TempSweep
             if (folder != null && !baseline.ContainsKey(folder))
                 baseline[folder] = Entries(folder).ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
+        // Staging files also live in the chosen output folder.
+        if (outputFolder != null && !baseline.ContainsKey(outputFolder))
+            baseline[outputFolder] = Entries(outputFolder).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
     private string[] Entries(string folder)
     {

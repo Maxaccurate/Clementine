@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation.Peers;
@@ -9,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using ZestDrop;
 
@@ -28,6 +30,7 @@ internal static class Checks
             catch (Exception ex) { failed++; results.Add(new { test = name, passed = false, error = ex.GetBaseException().Message }); }
         }
         void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
+        StartupChecks.Run(Check);
         var window = new Window { Width = 400, Height = 445, ShowActivated = false, ShowInTaskbar = false, Left = -5000, Top = -5000 };
         UiTheme.Apply(window);
         var panel = new StackPanel();
@@ -50,6 +53,35 @@ internal static class Checks
         window.Show(); window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
         root.Measure(new Size(400, 445)); root.Arrange(new Rect(0, 0, 400, 445)); root.UpdateLayout();
         void Pump() => window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+        Check("window corners use smooth alpha edges instead of a binary clipping region", () =>
+        {
+            IntPtr region = CreateRectRgn(0, 0, 0, 0);
+            try
+            {
+                int type = GetWindowRgn(new WindowInteropHelper(window).Handle, region);
+                Require(window.AllowsTransparency && (type == 0 || PtInRegion(region, 0, 0)), "A hard native corner region would cut off the antialiased edge.");
+                var frame = (FrameworkElement)UiTheme.Frame(window, new Grid());
+                frame.Measure(new Size(400, 200)); frame.Arrange(new Rect(0, 0, 400, 200)); frame.UpdateLayout();
+                var bitmap = new RenderTargetBitmap(400, 200, 96, 96, PixelFormats.Pbgra32); bitmap.Render(frame);
+                var pixels = new byte[400 * 200 * 4]; bitmap.CopyPixels(pixels, 400 * 4, 0);
+                int partial = 0;
+                for (int y = 0; y < 26; y++) for (int x = 0; x < 26; x++)
+                { int alpha = pixels[(y * 400 + x) * 4 + 3]; if (alpha > 0 && alpha < 255) partial++; }
+                Require(pixels[3] == 0 && partial > 10, "The corner must contain transparent pixels and blended edge pixels.");
+                Save(frame, Path.Combine(output, "smooth-corner.png"));
+                var reference = new Border { CornerRadius = new CornerRadius(20), Background = new SolidColorBrush(Color.FromRgb(248, 249, 250)), BorderBrush = new SolidColorBrush(Color.FromRgb(230, 233, 238)), BorderThickness = new Thickness(1) };
+                reference.Measure(new Size(400, 200)); reference.Arrange(new Rect(0, 0, 400, 200)); reference.UpdateLayout();
+                Save(reference, Path.Combine(output, "circular-corner.png"));
+            }
+            finally { DeleteObject(region); }
+        });
+        Check("continuous frame preserves more corner area and squares off when maximized", () =>
+        {
+            var bounds = new Rect(0, 0, 400, 200);
+            Require(ContinuousFrame.Outline(bounds, 20).FillContains(new Point(5, 5)), "Continuous corner should preserve the restrained, squarer silhouette.");
+            Require(!new RectangleGeometry(bounds, 20, 20).FillContains(new Point(5, 5)), "Reference circular corner unexpectedly changed.");
+            Require(ContinuousFrame.Outline(bounds, 0).FillContains(new Point(.5, .5)), "Maximized frame must retain its square edge.");
+        });
         Check("slider dragging updates the value and parameter subscriber", () =>
         {
             var track = (Track)slider.Template.FindName("PART_Track", slider);
@@ -100,6 +132,45 @@ internal static class Checks
         });
         slider.Value = 90; combo.SelectedIndex = 0; root.UpdateLayout(); Save(root, Path.Combine(output, "controls.png"));
         combo.IsEnabled = false; slider.IsEnabled = false; root.UpdateLayout(); Save(root, Path.Combine(output, "disabled.png"));
+        var dial = new RotationDial();
+        var dialPanel = new StackPanel { Margin = new Thickness(16), Width = 598 };
+        dialPanel.Children.Add(new TextBlock { Text = RotationDial.Caption, Margin = new Thickness(0, 0, 0, 12), FontFamily = UiTheme.Font, FontSize = 14 });
+        dialPanel.Children.Add(dial);
+        dialPanel.Measure(new Size(630, 150)); dialPanel.Arrange(new Rect(0, 0, 630, 150)); dialPanel.UpdateLayout();
+        Check("rotation dial has stable drag sensitivity and fine control", () =>
+        {
+            dial.Value = 0; dial.BeginDrag(); dial.DragBy(-100, false); Require(dial.Value == 20, "Normal drag sensitivity changed.");
+            dial.Value = 0; dial.BeginDrag(); dial.DragBy(-100, true); Require(dial.Value == 2, "Fine control must be ten times slower.");
+            dial.Value = 0; dial.BeginDrag(); for (int i = 0; i < 50; i++) dial.DragBy(-1, true);
+            Require(dial.Value == 1, "Small fine-drag events must accumulate instead of being discarded.");
+        });
+        Check("rotation stops at either limit and immediately reverses direction", () =>
+        {
+            dial.Value = 170; dial.BeginDrag(); dial.DragBy(-500, false); Require(dial.Value == 180, "Positive limit failed.");
+            dial.DragBy(5, false); Require(dial.Value == 179, "Overshoot must not create a dead zone on reversing.");
+            dial.Value = -170; dial.BeginDrag(); dial.DragBy(500, false); Require(dial.Value == -180, "Negative limit failed.");
+            dial.DragBy(-5, false); Require(dial.Value == -179, "Negative limit reversal failed.");
+        });
+        Check("signed quarter turns and export angles preserve image and video worker contracts", () =>
+        {
+            Require(RotationDial.Signed(270) == -90 && RotationDial.Signed(-270) == 90, "Quarter turn normalization failed.");
+            Require(RotationDial.BackendAngle(-15) == 345 && RotationDial.BackendAngle(-180) == 180, "Negative angles must export as equivalent clockwise angles.");
+            Require(RotationDial.BackendAngle(15) == 15 && RotationDial.BackendAngle(0) == 0, "Positive angles changed.");
+        });
+        Check("rotation dial exposes the signed range to accessibility tools", () =>
+        {
+            var range = (IRangeValueProvider)new SliderAutomationPeer(dial).GetPattern(PatternInterface.RangeValue)!;
+            Require(range.Minimum == -180 && range.Maximum == 180, "Incorrect accessible range.");
+            range.SetValue(-45); Require(dial.Value == -45, "Accessible negative value failed.");
+        });
+        Check("rotation crop dimensions match the export geometry for signed angles", () =>
+        {
+            Require(RotationGeometry.CropSize(401, 401, 28) == (293, 293), "Square photo crop dimensions changed.");
+            Require(RotationGeometry.CropSize(160, 120, 45) == (93, 70), "Landscape crop dimensions changed.");
+            Require(RotationGeometry.CropSize(160, 120, 30) == RotationGeometry.CropSize(160, 120, -30), "Signed preview and export crop dimensions disagree.");
+        });
+        foreach (double angleValue in new[] { 0d, 30d, -30d, 180d })
+        { dial.Value = angleValue; dialPanel.UpdateLayout(); Save(dialPanel, Path.Combine(output, "dial-" + angleValue + ".png")); }
         window.Close();
         File.WriteAllText(Path.Combine(output, "checks.json"), JsonSerializer.Serialize(new { passed = results.Count - failed, failed, checks = results }, new JsonSerializerOptions { WriteIndented = true }));
         Console.WriteLine($"passed={results.Count - failed}, failed={failed}");
@@ -113,4 +184,8 @@ internal static class Checks
         bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(path); encoder.Save(stream);
     }
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("user32.dll")] private static extern int GetWindowRgn(IntPtr window, IntPtr region);
+    [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool PtInRegion(IntPtr region, int x, int y);
+    [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool DeleteObject(IntPtr value);
 }

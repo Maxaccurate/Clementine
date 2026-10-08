@@ -33,7 +33,6 @@ internal sealed class TaskIndicatorWindow : Window
     public event Action<JobCard>? PauseRequested, ResumeRequested, CancelRequested;
     // "Hide all" stays in effect for new jobs until the stack is empty or the user shows it again.
     public bool AllHidden { get; private set; }
-    public bool Expanded => expanded;
     public IReadOnlyList<JobCard> Cards => cards;
     public IEnumerable<JobCard> VisibleCards => list.Children.OfType<JobCard>().Where(card => card.Visibility == Visibility.Visible);
     public bool HeaderVisible => header.Visibility == Visibility.Visible;

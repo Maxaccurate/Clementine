@@ -27,6 +27,22 @@ foreach(string tool in new[]{"cropImage","cropVideo"})
     Check(tool+" resolves decimal custom ratio for the real worker",()=>{var j=Job(tool,tool=="cropImage"?"png":"mp4",("width","150"),("height","100"),("ratio","custom"),("ratioWidth","2.35"),("ratioHeight","1"));JobValidation.ResolveRatio(j.Parameters!);JobValidation.Check(j,160,120);Require(j.Parameters!["ratio"]=="2.35:1");});
     foreach(string invalid in new[]{"0","-1","NaN","Infinity","abc",""})Check(tool+" rejects custom ratio width "+invalid,()=>Reject(Job(tool,"png",("ratio","custom"),("ratioWidth",invalid),("width","150"),("height","100"))));
 }
+foreach(string tool in new[]{"rotateImage","rotateVideo"})
+{
+    Check(tool+" offers quarter turns and flips, starting unchanged",()=>
+    {
+        var fields=Catalog.Definition(tool,tool=="rotateImage"?"image":"video").Fields!;
+        Require(fields.Single(f=>f.Name=="angle").Kind=="number"&&fields.Single(f=>f.Name=="angle").Default=="0");
+        Require(fields.Single(f=>f.Name=="expand").Choices!.SequenceEqual(tool=="rotateImage" ? ["crop","expand","keep"] : ["expand","keep"]));
+        Require(fields.Single(f=>f.Name=="expand").Default == (tool=="rotateImage" ? "crop" : "expand"));
+        Require(fields.Single(f=>f.Name=="flip").Choices!.SequenceEqual(["none","horizontal","vertical"])&&fields.Single(f=>f.Name=="flip").Default=="none");
+    });
+    Check(tool+" is available for pictures and videos of any size",()=>{var j=Job(tool,tool=="rotateImage"?"png":"mp4",("angle","90"));JobValidation.Check(j,160,120,10,0);});
+}
+foreach(string angle in new[]{"-1","361","abc"})
+    Check("a rotation of "+angle+" degrees is refused",()=>Reject(Job("rotateImage","png",("angle",angle))));
+foreach(string angle in new[]{"0","0.5","45","89.9","123.45","270","360"})
+    Check("a rotation of "+angle+" degrees is accepted",()=>JobValidation.Check(Job("rotateVideo","mp4",("angle",angle)),160,120,10,0));
 Check("crop coordinates cannot extend outside original image",()=>Reject(Job("cropImage","png",("x","120"),("width","50"),("height","30"))));
 Check("zero crop dimensions cannot be saved",()=>Reject(Job("cropVideo","mp4",("width","0"),("height","30"))));
 Check("fractional pixel dimensions rejected",()=>Reject(Job("cropImage","png",("width","30.5"),("height","30"))));

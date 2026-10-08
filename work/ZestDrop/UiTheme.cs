@@ -9,6 +9,7 @@ namespace ZestDrop;
 
 internal static class UiTheme
 {
+    public const double WindowCornerRadius = 20;
     private static readonly Uri FontBase = new($"pack://application:,,,/{typeof(UiTheme).Assembly.GetName().Name};component/");
     public static readonly FontFamily ChineseFont = new(FontBase, "./assets/fonts/#Source Han Sans CN Medium");
     // Latin uses Segoe UI; Chinese resolves to the bundled physical Medium face.
@@ -136,8 +137,10 @@ internal static class UiTheme
         window.FontFamily = Font;
         window.Foreground = Ink;
         window.FontSize = 13;
-        window.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
         window.WindowStyle = WindowStyle.None;
+        window.AllowsTransparency = true;
+        window.Background = Brushes.Transparent;
+        // A native window region cuts pixels into steps. Let WPF composite the rounded alpha edge instead.
         WindowChrome.SetWindowChrome(window, new WindowChrome { CaptionHeight = 42, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
     }
     public static UIElement Frame(Window window, UIElement content, string? title = null)
@@ -160,7 +163,13 @@ internal static class UiTheme
         root.Children.Add(caption);
         Grid.SetRow(content, 1);
         root.Children.Add(content);
-        return root;
+        var surface = new ContinuousFrame { Child = root, CornerRadius = WindowCornerRadius };
+        void UpdateCorners() => surface.CornerRadius = window.WindowState == WindowState.Maximized ? 0 : WindowCornerRadius;
+        EventHandler changed = (_, _) => UpdateCorners();
+        surface.Loaded += (_, _) => { window.StateChanged += changed; UpdateCorners(); };
+        surface.Unloaded += (_, _) => window.StateChanged -= changed;
+        UpdateCorners();
+        return surface;
     }
     public static Border Card(UIElement content, Thickness padding) => new() { Child = content, Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(230, 232, 235)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = padding };
 }

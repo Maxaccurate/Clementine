@@ -1,8 +1,10 @@
 from pathlib import Path,PurePosixPath
-import gzip,tarfile,zipfile,shutil,stat,tempfile,os,struct,zlib
+import gzip,tarfile,zipfile,shutil,stat,tempfile,struct,zlib
 from common import *
 
 SEVEN=BASE/'runtime/7zip/7z.exe'
+# Given when no password was typed, so 7-Zip reports a wrong password instead of waiting for someone to type one.
+NO_PASSWORD='zestdrop-no-password-given'
 
 def vint(value):
     output=bytearray()
@@ -40,9 +42,9 @@ def safe_name(name):
     if path.is_absolute() or '..' in path.parts or any(':' in part for part in path.parts): raise ValueError(T('压缩包包含不安全的文件路径'))
     return path
 
-def extract_to(path,folder):
-    path=Path(path); suffix=path.suffix.lower()
-    if suffix=='.zip':
+def extract_to(path,folder,params=None):
+    path=Path(path); suffix=path.suffix.lower(); secret=(params or {}).get('password','')
+    if suffix=='.zip' and not secret and not zip_needs_password(path):
         with zipfile.ZipFile(path) as archive:
             entries=archive.infolist(); check_scale(len(entries),sum(x.file_size for x in entries))
             for entry in entries:
@@ -62,21 +64,38 @@ def extract_to(path,folder):
         with gzip.open(path,'rb') as source,open(folder/path.stem,'wb') as target:
             for block in iter(lambda:source.read(1<<20),b''):
                 written+=len(block); check_scale(1,written); target.write(block)
-    elif suffix=='.rar':
+    elif suffix in ('.rar','.7z','.zip'):
         if not SEVEN.exists(): raise ValueError(T('RAR 解包需要本机 7-Zip'))
-        listing=process([SEVEN,'l','-slt','-ba','-sccUTF-8',path]); count=size=0
+        password=[f'-p{secret or NO_PASSWORD}']
+        try: listing=process([SEVEN,'l','-slt','-ba','-sccUTF-8',*password,path]); count=size=0
+        except RuntimeError as error: raise wrong_password(error) from None
         for line in listing.splitlines():
             if line.startswith('Path = '): safe_name(line[7:]); count+=1
             if line.startswith('Size = ') and line[7:].strip().isdigit(): size+=int(line[7:])
             if line.startswith(('Symbolic Link = ','Hard Link = ')) and line.split('=',1)[1].strip(): raise ValueError(T('暂不解压链接'))
         check_scale(count,size)
-        process([SEVEN,'x','-y','-sccUTF-8',f'-o{folder}',path])
+        try: process([SEVEN,'x','-y','-sccUTF-8',f'-o{folder}',*password,path])
+        except RuntimeError as error: raise wrong_password(error) from None
         for file in folder.rglob('*'):
             if file.is_symlink(): raise ValueError(T('解压结果包含链接'))
     else: raise ValueError(T('不支持的压缩包格式'))
 
+def zip_needs_password(path):
+    try:
+        with zipfile.ZipFile(path) as archive: return any(entry.flag_bits&1 for entry in archive.infolist())
+    except zipfile.BadZipFile: return False
+
+def wrong_password(error):
+    text=str(error)
+    if 'password' in text.lower() or 'Wrong' in text or 'Cannot open encrypted' in text: return ValueError(T('压缩包需要正确的密码'))
+    return error
+
 def pack(folder,path,fmt):
     files=sorted(folder.rglob('*'))
+    if fmt=='7z':
+        if not SEVEN.exists(): raise ValueError(T('7z 打包需要本机 7-Zip'))
+        process([SEVEN,'a','-t7z','-mx=5','-sccUTF-8','-bd',path,'*'],cwd=folder)
+        return
     if fmt=='zip':
         with zipfile.ZipFile(path,'w',zipfile.ZIP_DEFLATED,compresslevel=8) as archive:
             for file in files:
@@ -91,7 +110,7 @@ def pack(folder,path,fmt):
 def convert(paths,fmt,params):
     with tempfile.TemporaryDirectory(prefix='zestdrop-archive-') as temp:
         folder=Path(temp)
-        if not params.get('_pack') and len(paths)==1 and Path(paths[0]).suffix.lower() in ('.zip','.tar','.gz','.tgz','.rar'): extract_to(paths[0],folder)
+        if not params.get('_pack') and len(paths)==1 and Path(paths[0]).suffix.lower() in ('.zip','.tar','.gz','.tgz','.rar','.7z'): extract_to(paths[0],folder)
         else:
             for path in paths:
                 path=Path(path); target=folder/path.name
@@ -103,5 +122,26 @@ def convert(paths,fmt,params):
     return state['output']
 
 def extract(path,params):
-    with output_folder(path,'extracted',allow_empty=True) as state: extract_to(path,state['temp'])
+    with output_folder(path,'extracted',allow_empty=True) as state: extract_to(path,state['temp'],params)
+    return state['output']
+
+def pack_archive(paths,params):
+    """Pack files and folders as ZIP or 7z with an optional password (AES-256) and an optional volume size."""
+    fmt=params.get('format','zip'); secret=params.get('password',''); level=int(number(params,'level',5)); volume=number(params,'splitMB',0)
+    if fmt not in ('zip','7z') or not 1<=level<=9 or not 0<=volume<=100000: raise ValueError(T('压缩设置无效'))
+    if not SEVEN.exists(): raise ValueError(T('7z 打包需要本机 7-Zip'))
+    with tempfile.TemporaryDirectory(prefix='zestdrop-archive-') as temp:
+        folder=Path(temp)/'content'; folder.mkdir()
+        for path in paths:
+            path=Path(path); target=folder/path.name
+            if target.exists(): raise ValueError(T('选中文件有相同名称，请分开处理'))
+            if path.is_dir(): shutil.copytree(path,target,symlinks=False)
+            else: shutil.copy2(path,target)
+        options=['-sccUTF-8','-bd',f'-mx={level}']
+        if secret: options+=[f'-p{secret}']+(['-mem=AES256'] if fmt=='zip' else ['-mhe=on'])
+        if volume: options+=[f'-v{int(volume)}m']
+        if volume:
+            with output_folder(paths[0],'packArchive') as state: process([SEVEN,'a',f'-t{fmt}',*options,state['temp']/(output_stem(paths[0],'packed')+'.'+fmt),'*'],cwd=folder)
+        else:
+            with output_file(paths[0],'packArchive','.'+fmt) as state: process([SEVEN,'a',f'-t{fmt}',*options,state['temp'],'*'],cwd=folder)
     return state['output']

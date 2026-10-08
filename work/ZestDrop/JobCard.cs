@@ -23,7 +23,6 @@ internal sealed class JobCard : Border
     public JobState State { get; private set; } = JobState.Waiting;
     public bool Paused { get; private set; }
     public bool UserHidden { get; set; }
-    public string Heading => stage;
     public string FileName => file;
 
     public JobCard(ConversionJob job)

@@ -5,12 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
-using System.Text;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -18,6 +15,14 @@ namespace ZestDrop;
 
 internal static class Program
 {
+    private static void SavePng(System.Windows.Media.Imaging.BitmapSource bitmap, string path)
+    {
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+    }
+
     private static string WritableResultPath()
     {
         string preferred = Path.Combine(AppContext.BaseDirectory, "last-cli-result.json");
@@ -36,24 +41,30 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length == 4 && args[0] == "--debug-tool-render")
+        // Optional 5th argument: a scene such as "crop=250,200,800,600;ratio=4:3" or "busy" (see ToolWindow.DebugScene).
+        if (args.Length is 4 or 5 && args[0] == "--debug-tool-render")
         {
             var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
             var window = new ToolWindow([args[2]], Catalog.Definition(args[1], Catalog.Category(args[2])), Backend.Execute);
             window.Loaded += async (_, _) =>
             {
-                await Task.Delay(3000);
+                for (int attempt = 0; attempt < 150 && !window.DebugReady; attempt++)
+                    await Task.Delay(100);
+                if (args.Length == 5)
+                {
+                    window.DebugScene(args[4]);
+                    await Task.Delay(700);
+                }
                 window.UpdateLayout();
                 var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                 var background = new System.Windows.Media.DrawingVisual();
                 using (var dc = background.RenderOpen())
-                    dc.DrawRectangle(window.Background, null, new Rect(0, 0, window.ActualWidth, window.ActualHeight));
+                    dc.DrawRoundedRectangle(window.Background, null, new Rect(0, 0, window.ActualWidth, window.ActualHeight),
+                        window.WindowState == WindowState.Maximized ? 0 : UiTheme.WindowCornerRadius,
+                        window.WindowState == WindowState.Maximized ? 0 : UiTheme.WindowCornerRadius);
                 bitmap.Render(background);
                 bitmap.Render((System.Windows.Media.Visual)window.Content);
-                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-                using (var stream = File.Create(args[3]))
-                    encoder.Save(stream);
+                SavePng(bitmap, args[3]);
                 window.Close();
             };
             testApp.Run(window);
@@ -70,10 +81,13 @@ internal static class Program
             panel.Children.Add(media);
             panel.Children.Add(transport);
             media.Volume = 0;
-            var window = new Window { Content = panel, Width = 620, Height = 420, ShowActivated = false, ShowInTaskbar = false, Title = L.T("ZestDrop 播放器检查") };
+            var window = new Window { Width = 620, Height = 420, ShowActivated = false, ShowInTaskbar = false, Title = L.T("ZestDrop 播放器检查") };
+            UiTheme.Apply(window);
+            window.Content = UiTheme.Frame(window, panel);
             window.Loaded += async (_, _) =>
             {
                 bool passed = false;
+                bool videoFrameVisible = Catalog.Category(args[1]) == "audio";
                 double advanced = 0, paused = 0, sought = 0;
                 try
                 {
@@ -83,6 +97,19 @@ internal static class Program
                         await Task.Delay(100);
                     await Task.Delay(1000);
                     advanced = media.Position.TotalSeconds;
+                    if (!videoFrameVisible && media.ActualWidth > 0 && media.ActualHeight > 0)
+                    {
+                        var frame = new System.Windows.Media.Imaging.RenderTargetBitmap((int)media.ActualWidth, (int)media.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                        frame.Render(media);
+                        var pixels = new byte[frame.PixelWidth * frame.PixelHeight * 4];
+                        frame.CopyPixels(pixels, frame.PixelWidth * 4, 0);
+                        int lit = 0;
+                        for (int y = 0; y < frame.PixelHeight; y += 10)
+                            for (int x = 0; x < frame.PixelWidth; x += 10)
+                            { int p = (y * frame.PixelWidth + x) * 4; if (pixels[p] + pixels[p + 1] + pixels[p + 2] > 90) lit++; }
+                        videoFrameVisible = lit > 10;
+                        SavePng(frame, args[2] + ".frame.png");
+                    }
                     transport.Pause();
                     paused = media.Position.TotalSeconds;
                     await Task.Delay(350);
@@ -90,10 +117,10 @@ internal static class Program
                     await transport.Seek(10);
                     await Task.Delay(400);
                     sought = media.Position.TotalSeconds;
-                    passed = advanced > .1 && holds && Math.Abs(sought - 10) < .5 && error == null;
+                    passed = advanced > .1 && holds && Math.Abs(sought - 10) < .5 && error == null && videoFrameVisible;
                 }
                 catch (Exception ex) { error = ex.Message; }
-                finally { transport.Dispose(); File.WriteAllText(args[2], JsonSerializer.Serialize(new { passed, advanced, paused, sought, error })); window.Close(); testApp.Shutdown(); }
+                finally { transport.Dispose(); File.WriteAllText(args[2], JsonSerializer.Serialize(new { passed, advanced, paused, sought, videoFrameVisible, error })); window.Close(); testApp.Shutdown(); }
             };
             window.Show();
             testApp.Run();
@@ -143,15 +170,13 @@ internal static class Program
                 var wheel = new DropWheel((_, _) => { });
                 wheel.Preview([args[2]], args[1] == "tools", args[3]);
                 var root = (FrameworkElement)wheel.Content;
-                root.Measure(new Size(380, 380));
-                root.Arrange(new Rect(0, 0, 380, 380));
+                double stage = wheel.StageSize;
+                root.Measure(new Size(stage, stage));
+                root.Arrange(new Rect(0, 0, stage, stage));
                 root.UpdateLayout();
-                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(1140, 1140, 288, 288, System.Windows.Media.PixelFormats.Pbgra32);
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)(stage * 3), (int)(stage * 3), 288, 288, System.Windows.Media.PixelFormats.Pbgra32);
                 bitmap.Render(root);
-                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-                using (var stream = File.Create(args[4]))
-                    encoder.Save(stream);
+                SavePng(bitmap, args[4]);
                 testApp.Shutdown();
             });
             testApp.Run();
@@ -175,10 +200,7 @@ internal static class Program
                     dc.DrawRectangle(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(214, 217, 221)), null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
                 bitmap.Render(backdrop);
                 bitmap.Render(root);
-                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-                using var stream = File.Create($"{args[1]}-{state}.png");
-                encoder.Save(stream);
+                SavePng(bitmap, $"{args[1]}-{state}.png");
             }
             testApp.Dispatcher.InvokeAsync(() =>
             {
@@ -201,70 +223,25 @@ internal static class Program
             testApp.Run();
             return 0;
         }
-        if (args.Length == 2 && args[0] == "--debug-welcome")
-        {
-            // Renders the welcome window to <prefix>-en.png and <prefix>-zh.png.
-            var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            testApp.Dispatcher.InvokeAsync(async () =>
-            {
-                foreach (var language in new[] { "en", "zh" })
-                {
-                    L.UseForSession(language);
-                    var window = new WelcomeWindow { Left = 40, Top = 40, ShowActivated = false };
-                    window.Show();
-                    await Task.Delay(700);
-                    window.UpdateLayout();
-                    var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-                    var background = new System.Windows.Media.DrawingVisual();
-                    using (var dc = background.RenderOpen())
-                        dc.DrawRectangle(window.Background, null, new Rect(0, 0, window.ActualWidth, window.ActualHeight));
-                    bitmap.Render(background);
-                    bitmap.Render((System.Windows.Media.Visual)window.Content);
-                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-                    using (var stream = File.Create($"{args[1]}-{language}.png"))
-                        encoder.Save(stream);
-                    window.Close();
-                }
-                testApp.Shutdown();
-            });
-            testApp.Run();
-            return 0;
-        }
-        if (args.Length == 2 && args[0] == "--debug-job")
-        {
-            var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            var indicator = new TaskIndicatorWindow();
-            var job = JsonSerializer.Deserialize<ConversionJob>(File.ReadAllText(args[1]))!;
-            testApp.Dispatcher.InvokeAsync(async () =>
-            {
-                var card = indicator.Add(job);
-                try
-                {
-                    var result = await Backend.Execute(job, CancellationToken.None, card.Start());
-                    var error = result.Files.FirstOrDefault(f => f.Error != null)?.Error;
-                    indicator.Finish(card, error == null ? L.T("处理完成") : L.T("处理未完成"), error ?? Path.GetFileName(result.Files.Last().Output) ?? L.T("新文件已保存"));
-                }
-                catch (Exception ex) { indicator.Finish(card, L.T("处理未完成"), ex.Message); }
-                await Task.Delay(5000);
-                indicator.Close();
-                testApp.Shutdown();
-            });
-            testApp.Run();
-            return 0;
-        }
+        bool startupLaunch = StartupManager.IsStartupLaunch(args);
         using var mutex = new Mutex(true, @"Local\ZestDrop_20261003", out bool first);
         // Both copies create the same named event, so it works whichever starts first.
         using var showRequest = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\ZestDrop_20261003_Show");
+        string[] opened = ExplorerIntegration.PathsIn(args);
         if (!first)
         {
+            if (opened.Length > 0)
+            { ExplorerIntegration.Send(opened); return 0; }
+            if (startupLaunch) return 0;
             // Launching ZestDrop again (for example from the Start menu) wakes the running copy and shows its window.
             Native.AllowSetForegroundWindow(-1);
             showRequest.Set();
             return 0;
         }
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        using var resident = new Resident(app, showRequest);
+        using var resident = new Resident(app, showRequest, startupLaunch);
+        if (opened.Length > 0)
+            app.Dispatcher.InvokeAsync(() => resident.OpenFiles(opened));
         app.Run();
         return 0;
     }
@@ -352,15 +329,23 @@ internal sealed class Resident : IDisposable
     private sealed record QueuedJob(ConversionJob Job, TaskCompletionSource<BatchResult>? Completion = null, CancellationToken Cancellation = default, IProgress<JobProgress>? Progress = null) { public volatile bool Started; }
 
     private WelcomeWindow? welcome;
+    private readonly List<string> recent = [];
+    private WatchFolders? watch;
+    private WatchWindow? watchWindow;
+    private FlowWindow? flowWindow;
+    private readonly EventWaitHandle openRequest = new(false, EventResetMode.AutoReset, ExplorerIntegration.EventName);
 
-    public Resident(System.Windows.Application app, EventWaitHandle showRequest)
+    private Forms.ToolStripMenuItem? startupMenu;
+    public Resident(System.Windows.Application app, EventWaitHandle showRequest, bool startupLaunch = false)
     {
         this.app = app;
+        StartupManager.RefreshPortablePath();
         Journal.Prune();
         wheel = new DropWheel(BeginOperation);
         trayIcon = AppIcon.CreateTrayIcon();
         tray = new Forms.NotifyIcon { Icon = trayIcon, Visible = true };
         BuildTrayMenu();
+        StartupManager.Changed += RefreshStartupMenu;
         // The tray menu, tooltip and progress stack switch language immediately; open tool windows keep theirs.
         L.Changed += () =>
         {
@@ -376,10 +361,13 @@ internal sealed class Resident : IDisposable
         timer.Tick += Poll;
         timer.Start();
         _ = WorkQueue();
+        watch = new WatchFolders(Enqueue);
+        watch.Reload();
         Journal.Write("Started", new { noMainWindow = true, modifierShortcuts = true, dragFunctionKeys = true });
         // ZestDrop only starts when someone launches it, so show how to use it. People who prefer the quiet start
         // can switch the window off; they still get the tray notification.
-        if (Settings.GetBool(WelcomeWindow.HideAtStartKey, false))
+        if (startupLaunch) { /* Sign-in launches stay quiet. */ }
+        else if (Settings.GetBool(WelcomeWindow.HideAtStartKey, false))
             Notify(L.T("ZestDrop 已运行"), L.T("拖文件 + Shift：转换；Ctrl+Shift：工具。拖拽时也可按 F8/F9。"));
         else
             ShowWelcome();
@@ -409,12 +397,81 @@ internal sealed class Resident : IDisposable
     {
         var watcher = new Thread(() =>
         {
-            var handles = new WaitHandle[] { showRequest, stopping.Token.WaitHandle };
-            while (WaitHandle.WaitAny(handles) == 0)
-                app.Dispatcher.InvokeAsync(ShowWelcome);
+            var handles = new WaitHandle[] { showRequest, stopping.Token.WaitHandle, openRequest };
+            for (int signalled; (signalled = WaitHandle.WaitAny(handles)) != 1;)
+                if (signalled == 0)
+                    app.Dispatcher.InvokeAsync(ShowWelcome);
+                else
+                    app.Dispatcher.InvokeAsync(HandleOpenRequests);
         })
         { IsBackground = true, Name = "ZestDrop second-launch watcher" };
         watcher.Start();
+    }
+
+    // Several files chosen in Explorer can arrive as separate launches; wait a moment and treat them as one selection.
+    private async void HandleOpenRequests()
+    {
+        await Task.Delay(500);
+        if (disposed)
+            return;
+        var paths = ExplorerIntegration.Receive().SelectMany(batch => batch).Distinct(StringComparer.OrdinalIgnoreCase).Where(p => File.Exists(p) || Directory.Exists(p)).ToArray();
+        if (paths.Length > 0)
+            OpenFiles(paths);
+    }
+
+    public void OpenFiles(string[] paths)
+    {
+        if (!disposed)
+            OpenMenu.Show(paths, BeginOperation);
+    }
+
+    private void OpenFromClipboard()
+    {
+        string[] paths = [];
+        try
+        {
+            if (System.Windows.Clipboard.ContainsFileDropList())
+                paths = System.Windows.Clipboard.GetFileDropList().Cast<string>().Where(p => File.Exists(p) || Directory.Exists(p)).ToArray();
+            else if (System.Windows.Clipboard.ContainsImage() && System.Windows.Clipboard.GetImage() is { } image)
+            {
+                // Kept where the user can find the results: the chosen output folder, or a ZestDrop folder in Pictures.
+                string folder = OutputFolder.Current ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "ZestDrop");
+                Directory.CreateDirectory(folder);
+                string file = Path.Combine(folder, "clipboard-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".png");
+                SavePicture(image, file);
+                paths = [file];
+            }
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or IOException or UnauthorizedAccessException) { Notify(L.T("无法读取剪贴板"), ex.Message); return; }
+        if (paths.Length == 0)
+        { Notify(L.T("剪贴板里没有图片或文件"), L.T("先复制一张图片，或在资源管理器里复制文件。")); return; }
+        OpenFiles(paths);
+    }
+
+    private static void SavePicture(System.Windows.Media.Imaging.BitmapSource image, string file)
+    {
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+        using var stream = File.Create(file);
+        encoder.Save(stream);
+    }
+
+    private void ChooseOutputFolder()
+    {
+        using var dialog = new Forms.FolderBrowserDialog { Description = L.T("选择保存结果的文件夹"), SelectedPath = OutputFolder.Current ?? "" };
+        if (dialog.ShowDialog() == Forms.DialogResult.OK)
+            OutputFolder.Choose(dialog.SelectedPath);
+    }
+
+    private void ShowWatchWindow()
+    {
+        if (watchWindow == null)
+        {
+            watchWindow = new WatchWindow(() => watch?.Reload());
+            watchWindow.Closed += (_, _) => watchWindow = null;
+            watchWindow.Show();
+        }
+        watchWindow.Activate();
     }
 
     private void OpenNotices()
@@ -441,14 +498,57 @@ internal sealed class Resident : IDisposable
         items.Items.Add(L.T("第三方组件许可"), null, (_, _) => OpenNotices());
         items.Items.Add(L.T("最近输出所在文件夹"), null, (_, _) => { if (lastOutput != null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{lastOutput}\"") { UseShellExecute = true }); });
         items.Items.Add(new Forms.ToolStripSeparator());
+        items.Items.Add(L.T("处理剪贴板里的图片或文件…"), null, (_, _) => OpenFromClipboard());
+        var recentMenu = new Forms.ToolStripMenuItem(L.T("最近输出"));
+        items.Items.Add(recentMenu);
+        var locationMenu = new Forms.ToolStripMenuItem(L.T("保存位置"));
+        var sameFolder = new Forms.ToolStripMenuItem(L.T("与原文件相同"), null, (_, _) => OutputFolder.Choose(null));
+        var otherFolder = new Forms.ToolStripMenuItem(L.T("选择文件夹…"), null, (_, _) => ChooseOutputFolder());
+        locationMenu.DropDownItems.AddRange([sameFolder, otherFolder]);
+        items.Items.Add(locationMenu);
+        items.Items.Add(L.T("监视文件夹…"), null, (_, _) => ShowWatchWindow());
+        items.Items.Add(L.T("流程…"), null, (_, _) => { if (flowWindow == null) { flowWindow = new FlowWindow(() => { }); flowWindow.Closed += (_, _) => flowWindow = null; flowWindow.Show(); } flowWindow.Activate(); });
+        Forms.ToolStripMenuItem? explorerItem = null;
+        if (ExplorerIntegration.Available)
+        {
+            explorerItem = new Forms.ToolStripMenuItem(L.T("资源管理器右键菜单"));
+            explorerItem.Click += (_, _) =>
+            {
+                try
+                { ExplorerIntegration.Set(!ExplorerIntegration.Enabled); }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { Notify(L.T("资源管理器右键菜单"), ex.Message); }
+            };
+            items.Items.Add(explorerItem);
+        }
+        items.Items.Add(new Forms.ToolStripSeparator());
         // Language names are shown in their own language so either can be found whatever is active.
         var language = new Forms.ToolStripMenuItem(L.T("语言") + " / Language");
         foreach (var (code, name) in new[] { ("zh", "简体中文"), ("en", "English") })
             language.DropDownItems.Add(new Forms.ToolStripMenuItem(name, null, (_, _) => L.Language = code) { Checked = L.Language == code });
         items.Items.Add(language);
+        startupMenu = new Forms.ToolStripMenuItem(L.T("开机自启"));
+        var startupItem = startupMenu;
+        startupItem.Click += async (_, _) =>
+        {
+            startupItem.Enabled = false;
+            var result = await StartupManager.SetAsync(!startupItem.Checked);
+            if (disposed) return;
+            startupItem.Checked = result.Enabled; startupItem.Enabled = result.CanChange;
+            if (result.Message != null) Notify(L.T("开机自启"), result.Message);
+        };
+        items.Items.Add(startupItem);
         items.Items.Add(L.T("退出 ZestDrop"), null, (_, _) => app.Shutdown());
         items.Opening += (_, _) =>
         {
+            RefreshStartupMenu();
+            recentMenu.DropDownItems.Clear();
+            foreach (string output in recent.Take(10))
+                recentMenu.DropDownItems.Add(Path.GetFileName(output) is { Length: > 0 } leaf ? leaf : output, null, (_, _) => { if (File.Exists(output) || Directory.Exists(output)) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{output}\"") { UseShellExecute = true }); });
+            recentMenu.Enabled = recent.Count > 0;
+            sameFolder.Checked = OutputFolder.Current == null;
+            otherFolder.Text = OutputFolder.Current is { } chosen ? L.T("选择文件夹…") + "  (" + chosen + ")" : L.T("选择文件夹…");
+            if (explorerItem != null)
+                explorerItem.Checked = ExplorerIntegration.Enabled;
             bool canPause = jobs.Any(CanPause), canResume = jobs.Any(j => j.Pause != null);
             showProgress.Enabled = cancelAll.Enabled = jobs.Count > 0;
             pauseAll.Enabled = canPause || canResume;
@@ -456,6 +556,15 @@ internal sealed class Resident : IDisposable
         };
         tray.ContextMenuStrip = items;
         old?.Dispose();
+        RefreshStartupMenu();
+    }
+    private async void RefreshStartupMenu()
+    {
+        var item = startupMenu;
+        var status = await StartupManager.GetAsync();
+        if (disposed || item == null || item.IsDisposed || item != startupMenu) return;
+        item.Checked = status.Enabled; item.Enabled = status.CanChange;
+        item.ToolTipText = status.Message ?? L.T("登录 Windows 后在后台运行，不打开欢迎窗口。");
     }
 
     private void Activate(bool tools, string reason, bool modifier = false)
@@ -539,6 +648,13 @@ internal sealed class Resident : IDisposable
 
     private void BeginOperation(string[] paths, Operation operation)
     {
+        if (operation.Id.StartsWith(Flows.Prefix))
+        {
+            try
+            { Enqueue(Flows.Job(paths, operation.Id)); }
+            catch (ArgumentException ex) { Notify(L.T("流程"), ex.Message); }
+            return;
+        }
         if (operation.Tool && ((operation.Fields?.Length ?? 0) > 0 || operation.Ordered || Catalog.Category(paths[0]) is "audio" or "video"))
         {
             var tool = new ToolWindow(paths, operation, EnqueueTool);
@@ -582,7 +698,7 @@ internal sealed class Resident : IDisposable
             request = Path.Combine(session, "request.json");
             response = Path.Combine(session, "result.json");
             File.WriteAllText(request, JsonSerializer.Serialize(queued.Job));
-            job.Sweep = new TempSweep(queued.Job.Paths, job.Token);
+            job.Sweep = new TempSweep(queued.Job.Paths, job.Token, OutputFolder.For(queued.Job));
             using var watch = Backend.WatchProgress(response, progress);
             var start = Backend.StartInfo("--job", request, response);
             // The worker tags its staging files with this id, so cleanup after a cancel touches only this job's files.
@@ -603,7 +719,13 @@ internal sealed class Resident : IDisposable
             queued.Completion?.TrySetResult(result);
             var success = result.Files.Where(x => x.Output != null).ToArray();
             if (success.Length > 0)
+            {
                 lastOutput = success[^1].Output;
+                foreach (var file in success.Reverse())
+                { recent.Remove(file.Output!); recent.Insert(0, file.Output!); }
+                if (recent.Count > 20)
+                    recent.RemoveRange(20, recent.Count - 20);
+            }
             int failures = result.Files.Length - success.Length;
             Journal.Write("Completed", new { queued.Job.Action, count = result.Files.Length, success = success.Length, failures, errors = result.Files.Where(x => x.Error != null).Select(x => x.Error) });
             string detail = failures == 0 ? L.T("新文件已保存到原文件夹。") : result.Files.First(x => x.Error != null).Error!;
@@ -712,6 +834,7 @@ internal sealed class Resident : IDisposable
         if (disposed)
             return;
         disposed = true;
+        StartupManager.Changed -= RefreshStartupMenu;
         timer.Stop();
         stopping.Cancel();
         queue.Writer.TryComplete();
@@ -725,6 +848,8 @@ internal sealed class Resident : IDisposable
             catch (InvalidOperationException) { }
             job.Pause?.Dispose();
         }
+        watch?.Dispose();
+        openRequest.Dispose();
         tray.Dispose();
         trayIcon.Dispose();
         welcome?.Close();

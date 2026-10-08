@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -22,6 +21,8 @@ internal static class Backend
         info.Environment["PYTHONPYCACHEPREFIX"] = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZestDrop", "pycache");
         // A copy of the user's environment is inherited; if it asks Python not to write bytecode, the cache above would stay empty.
         info.Environment.Remove("PYTHONDONTWRITEBYTECODE");
+        // Results go where the user chose (tray menu); an empty value means next to the source file.
+        info.Environment["ZESTDROP_OUTPUT_DIR"] = OutputFolder.Current ?? "";
         foreach (string arg in arguments)
             info.ArgumentList.Add(arg);
         return info;

@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -49,21 +48,31 @@ internal sealed class ToolWindow : Window
     private bool rangeEdited;
     private int previewVersion;
     private string metadataText = "";
-    private Button saveButton = null!, cancelButton = null!, revealButton = null!;
-    private readonly ActivityIndicator activity = new();
+    private Button saveButton = null!, cancelButton = null!, revealButton = null!, copyButton = null!;
+    private readonly BusyLine busyLine = new();
+    private readonly CropFrame cropFrame = new();
+    private string editedField = "";
     private FrameworkElement bodyPanel = null!;
     private CancellationTokenSource? saving, previewCancellation;
     private string? lastOutput;
     private readonly ComboBox framePicker = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 10) };
     private bool syncingRegion;
     private int imageFrame = -1;
-    private bool VisualPreview => operation.Id is "editImage" or "frameImage" or "cropImage" or "cropVideo" or "redactImage" or "redactVideo" or "organizePDF" or "createCollage";
+    private bool Cropping => operation.Id is "cropImage" or "cropVideo";
+    // Rotating is previewed by transforming the picture (or the playing video) itself, so every change shows at once.
+    private bool Rotating => operation.Id is "rotateImage" or "rotateVideo";
+    internal bool DebugReady => loaded;
+    private readonly Grid rotateStage = new();
+    private readonly Border rotatePlate = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+    // Cropping is previewed by the frame itself, so the preview is not regenerated while its settings change.
+    private bool LivePreview => RefreshFrame && !HasMedia && operation.Id != "cropImage";
+    private bool VisualPreview => operation.Id == "watermark" && Catalog.Category(paths[0]) == "image" || operation.Id is "editImage" or "frameImage" or "cropImage" or "cropVideo" or "redactImage" or "redactVideo" or "organizePDF" or "createCollage";
     private bool ProcessedPlayback => operation.Id is "normalizeAudio" or "audioChannels" or "audioToVideo" or "redactAudio" or "trimAudio" or "trimVideo" or "cropVideo" or "changeVideoSpeed" or "redactVideo" or "muteVideo";
     private bool HasMedia => Catalog.Category(paths[0]) is "audio" or "video";
     private MediaTransport? transport;
     private bool syncingPlayback;
     private bool syncingTrim;
-    private bool HasTimeline => operation.Id is "cropVideo" or "redactVideo" or "videoSnapshots" or "trimVideo" or "trimAudio" or "redactAudio";
+    private bool HasTimeline => operation.Id is "videoToGif" or "cropVideo" or "redactVideo" or "videoSnapshots" or "trimVideo" or "trimAudio" or "redactAudio";
     private bool RefreshFrame => VisualPreview || HasTimeline && Catalog.Category(paths[0]) == "video";
     private Button? compareButton;
 
@@ -124,27 +133,32 @@ internal sealed class ToolWindow : Window
         Grid.SetRow(body, 1);
         root.Children.Add(body);
         var left = new StackPanel { Margin = new Thickness(0, 0, 0, 0) };
-        left.Children.Add(new TextBlock { Text = VisualPreview ? L.T("效果预览") : L.T("源文件预览"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 12) });
+        left.Children.Add(new TextBlock { Text = VisualPreview || Rotating ? L.T("效果预览") : L.T("源文件预览"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 12) });
         left.Children.Add(framePicker);
-        framePicker.SelectionChanged += async (_, _) => { if (loaded && framePicker.SelectedItem is ComboBoxItem item) { imageFrame = (int)item.Tag; regions.Clear(); regionList.Items.Clear(); await Initialize(); SchedulePreview(); } };
+        framePicker.SelectionChanged += async (_, _) => { if (loaded && framePicker.SelectedItem is ComboBoxItem item) { imageFrame = (int)item.Tag; regions.Clear(); regionList.Items.Clear(); await Initialize(); if (LivePreview) SchedulePreview(); } };
         previewHost.Height = 300;
         previewHost.Background = new SolidColorBrush(Color.FromRgb(244, 245, 247));
-        previewHost.Children.Add(image);
-        previewHost.Children.Add(player);
+        if (Rotating)
+        {
+            rotateStage.Children.Add(rotatePlate);
+            rotateStage.Children.Add(image);
+            rotateStage.Children.Add(player);
+            previewHost.Children.Add(rotateStage);
+            previewHost.SizeChanged += (_, _) => UpdateRotationPreview();
+        }
+        else
+        {
+            previewHost.Children.Add(image);
+            previewHost.Children.Add(player);
+        }
         player.Visibility = Visibility.Collapsed;
         previewHost.Children.Add(overlay);
         overlay.Children.Add(selection);
+        if (Cropping)
+            AddCropFrame();
+        // A thin line instead of a card: it never hides the picture and only appears if the work takes a moment.
+        previewHost.Children.Add(busyLine);
         left.Children.Add(previewHost);
-        var busyOverlay = new Border { Background = new SolidColorBrush(Color.FromArgb(235, 244, 245, 247)) };
-        var busyCard = UiTheme.Card(activity, new Thickness(22, 18, 22, 18));
-        busyCard.Width = 290;
-        busyCard.MaxWidth = 380;
-        busyCard.Margin = new Thickness(16);
-        busyCard.VerticalAlignment = VerticalAlignment.Center;
-        busyCard.HorizontalAlignment = HorizontalAlignment.Center;
-        busyOverlay.Child = busyCard;
-        busyOverlay.SetBinding(VisibilityProperty, new Binding("Visibility") { Source = activity });
-        previewHost.Children.Add(busyOverlay);
         overlay.MouseLeftButtonDown += BeginSelection;
         overlay.MouseMove += MoveSelection;
         overlay.MouseLeftButtonUp += EndSelection;
@@ -156,7 +170,7 @@ internal sealed class ToolWindow : Window
                 if (showingOriginal)
                 { await UpdatePreview(); }
                 else if (originalPreview != null)
-                { player.Stop(); player.Visibility = Visibility.Collapsed; SetImage(originalPreview); showingOriginal = true; compareButton!.Content = L.T("查看效果"); status.Text = L.T("正在查看原始画面。"); }
+                { player.Stop(); player.Visibility = Visibility.Collapsed; SetImage(originalPreview); showingOriginal = true; compareButton!.Content = L.T("查看效果"); status.Text = L.T("正在查看原始画面。"); UpdateCropVisibility(); }
             });
             previewButtons.Children.Add(compareButton);
         }
@@ -182,7 +196,7 @@ internal sealed class ToolWindow : Window
             if (!HasMedia)
             { left.Children.Add(positionLabel); left.Children.Add(timeline); }
             System.Windows.Automation.AutomationProperties.SetName(timeline, L.T("播放位置（秒）"));
-            timeline.ValueChanged += (_, _) => { if (loaded) { syncingPlayback = transport?.IsSynchronizing == true; Set("time", timeline.Value.ToString("0.000", CultureInfo.InvariantCulture)); syncingPlayback = false; if (!HasMedia && RefreshFrame) SchedulePreview(); } };
+            timeline.ValueChanged += (_, _) => { if (loaded) { syncingPlayback = transport?.IsSynchronizing == true; Set("time", timeline.Value.ToString("0.000", CultureInfo.InvariantCulture)); syncingPlayback = false; if (LivePreview) SchedulePreview(); } };
             var frameButtons = new WrapPanel();
             if (operation.Id == "videoSnapshots")
             { frameButtons.Children.Add(Button(L.T("上一帧"), () => StepFrame(-1))); frameButtons.Children.Add(Button(L.T("下一帧"), () => StepFrame(1))); }
@@ -190,26 +204,36 @@ internal sealed class ToolWindow : Window
             { frameButtons.Children.Add(Button(L.T("设为开始"), () => { Set("start", timeline.Value.ToString("0.000", CultureInfo.InvariantCulture)); return Task.CompletedTask; })); frameButtons.Children.Add(Button(L.T("设为结束"), () => { Set("end", timeline.Value.ToString("0.000", CultureInfo.InvariantCulture)); return Task.CompletedTask; })); }
             left.Children.Add(frameButtons);
             if (transport != null)
-                transport.ModeChanged += () => frameButtons.IsEnabled = !transport.EffectSelected;
+                transport.ModeChanged += () => { frameButtons.IsEnabled = !transport.EffectSelected; UpdateCropVisibility(); };
+        }
+        StackPanel? rotationPanel = null;
+        if (Rotating)
+        {
+            rotationPanel = new StackPanel { Margin = new Thickness(0, 8, 0, 4) };
+            left.Children.Add(rotationPanel);
+            if (operation.Id == "rotateVideo")
+                left.Children.Add(new TextBlock { Text = L.T("保留完整时长和原有音轨；视频会重新编码。"), Foreground = UiTheme.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4) });
         }
         if (operation.Id == "cropVideo")
             left.Children.Add(new TextBlock { Text = L.T("只裁剪画面；保留完整时长和原有音轨。"), Foreground = UiTheme.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 4) });
         if (operation.Id is "cropImage" or "cropVideo" or "redactImage" or "redactVideo")
         {
             bool cropping = operation.Id is "cropImage" or "cropVideo";
-            left.Children.Add(new TextBlock { Text = cropping ? L.T("在预览上拖动选择裁剪范围。") : L.T("在预览上拖动选区，可添加多个打码区域。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) });
+            left.Children.Add(new TextBlock { Text = cropping ? L.T("拖动裁剪框移动位置，拖动边角或边缘调整大小。") : L.T("在预览上拖动选区，可添加多个打码区域。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) });
             left.Children.Add(Button(cropping ? L.T("重置裁剪") : L.T("清空覆盖区域"), () =>
             {
+                if (cropping)
+                { ResetCrop(); return Task.CompletedTask; }
                 regions.Clear();
                 regionList.Items.Clear();
                 Set("regions", "");
                 selection.Visibility = Visibility.Collapsed;
-                if (cropping)
-                { Set("x", "0"); Set("y", "0"); Set("width", originalWidth.ToString()); Set("height", originalHeight.ToString()); Set("ratio", "free"); if (originalPreview != null) { SetImage(originalPreview); showingOriginal = true; } }
-                if (!cropping)
-                { Set("width", "0"); Set("height", "0"); rangeEdited = false; if (originalPreview != null) { SetImage(originalPreview); showingOriginal = true; } status.Text = L.T("覆盖区域已清空。请拖动添加新区域。"); }
-                else
-                    SchedulePreview();
+                Set("width", "0");
+                Set("height", "0");
+                rangeEdited = false;
+                if (originalPreview != null)
+                { SetImage(originalPreview); showingOriginal = true; }
+                status.Text = L.T("覆盖区域已清空。请拖动添加新区域。");
                 return Task.CompletedTask;
             }));
             if (operation.Id is "redactImage" or "redactVideo")
@@ -239,7 +263,7 @@ internal sealed class ToolWindow : Window
         if (operation.Id == "normalizeAudio")
             left.Children.Add(Button(L.T("分析原始与处理后响度"), async () =>
         {
-            using var busy = activity.Begin(L.T("正在分析响度"), Path.GetFileName(paths[0]));
+            using var busy = busyLine.Begin();
             try
             { status.Text = L.T("分析响度…"); var info = await Backend.Preview(Capture(), folder, closing.Token, "--analyze"); status.Text = L.F("原始 {0} LUFS · 处理后 {1} LUFS", info.GetProperty("Input").GetString(), info.GetProperty("Output").GetString()); }
             catch (Exception ex) { status.Text = L.T("分析：") + ex.Message; }
@@ -270,6 +294,8 @@ internal sealed class ToolWindow : Window
         {
             var fieldHost = field.Kind == "json" ? advanced : parameters;
             var fieldLabel = new TextBlock { Text = field.Label, Margin = new Thickness(0, 9, 0, 4), TextWrapping = TextWrapping.Wrap };
+            if (Rotating && field.Name == "background" && Path.GetExtension(paths[0]).ToLowerInvariant() is ".jpg" or ".jpeg" or ".bmp")
+                fieldLabel.Text = L.T("空白处颜色（留空为白色）");
             fieldLabels[field.Name] = fieldLabel;
             fieldHost.Children.Add(fieldLabel);
             FrameworkElement control;
@@ -292,18 +318,104 @@ internal sealed class ToolWindow : Window
                 var box = new TextBox { Text = field.Default, Padding = new Thickness(10, 8, 10, 8), AcceptsReturn = field.Kind == "json", TextWrapping = field.Kind == "json" ? TextWrapping.Wrap : TextWrapping.NoWrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
                 if (field.Kind == "json")
                 { box.Height = 105; box.FontFamily = new FontFamily("Consolas"); }
-                box.TextChanged += (_, _) => { if (loaded) { if (new[] { "x", "y", "width", "height", "start", "end" }.Contains(field.Name)) rangeEdited = true; if (field.Name == "search") FilterMetadata(box.Text); else ParameterChanged(); } };
+                box.TextChanged += (_, _) => { if (loaded) { editedField = field.Name; if (new[] { "x", "y", "width", "height", "start", "end" }.Contains(field.Name)) rangeEdited = true; if (field.Name == "search") FilterMetadata(box.Text); else ParameterChanged(); } };
+                // While a number is being typed the frame follows it; once the box is left, the box shows what the frame really is.
+                if (Cropping && field.Name is "x" or "y" or "width" or "height")
+                    box.LostKeyboardFocus += (_, _) => { if (loaded) WriteCropFields(); };
                 control = box;
             }
             controls[field.Name] = control;
             fieldHost.Children.Add(control);
             System.Windows.Automation.AutomationProperties.SetName(control, field.Label);
             if (control is ComboBox choiceControl)
-                choiceControl.SelectionChanged += (_, _) => { if (loaded && VisualPreview) ParameterChanged(); };
+                choiceControl.SelectionChanged += (_, _) => { if (loaded && (VisualPreview || Rotating)) { editedField = field.Name; ParameterChanged(); } };
             if (control is CheckBox toggle && field.Name == "remove")
             { toggle.Checked += (_, _) => SetMetadataState(); toggle.Unchecked += (_, _) => SetMetadataState(); }
-            if (field.Kind == "file")
-                parameters.Children.Add(Button(L.T("选择图片…"), () => { var dialog = new Microsoft.Win32.OpenFileDialog { Filter = L.T("图片|*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.heic;*.avif|所有文件|*.*") }; if (dialog.ShowDialog(this) == true) Set(field.Name, dialog.FileName); return Task.CompletedTask; }));
+            if (field.Kind.StartsWith("file"))
+            {
+                var (pickLabel, pickFilter) = field.Kind switch
+                {
+                    "file:audio" => (L.T("选择音频…"), L.T("音频|*.mp3;*.m4a;*.wav;*.flac;*.ogg;*.opus;*.aiff;*.wma|所有文件|*.*")),
+                    "file:subtitle" => (L.T("选择字幕…"), L.T("字幕|*.srt;*.ass;*.ssa;*.vtt|所有文件|*.*")),
+                    _ => (L.T("选择图片…"), L.T("图片|*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.heic;*.avif|所有文件|*.*"))
+                };
+                parameters.Children.Add(Button(pickLabel, () => { var dialog = new Microsoft.Win32.OpenFileDialog { Filter = pickFilter }; if (dialog.ShowDialog(this) == true) Set(field.Name, dialog.FileName); return Task.CompletedTask; }));
+            }
+        }
+        void ShowField(string name, bool visible)
+        {
+            if (controls.TryGetValue(name, out var shown))
+                shown.Visibility = fieldLabels[name].Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+        void WhenChanged(string name, Action update)
+        {
+            ((ComboBox)controls[name]).SelectionChanged += (_, _) => update();
+            update();
+        }
+        if (operation.Id == "resizeImage")
+            WhenChanged("mode", () => { string mode = Get("mode", "percent"); ShowField("percent", mode == "percent"); ShowField("edge", mode == "edge"); foreach (string name in new[] { "width", "height", "keepRatio" }) ShowField(name, mode == "size"); });
+        if (operation.Id == "watermark")
+            WhenChanged("layout", () => { bool tiled = Get("layout", "single") == "tiled"; ShowField("position", !tiled); ShowField("margin", !tiled); });
+        if (operation.Id == "pdfPassword")
+            WhenChanged("mode", () => ShowField("newPassword", Get("mode", "add") == "add"));
+        if (operation.Id == "createAnimation")
+            WhenChanged("format", () => ShowField("loop", Get("format", "gif") == "gif"));
+        if (operation.Id == "compress" && controls.ContainsKey("targetKB"))
+        {
+            // Common upload limits; a click fills the size target in.
+            var limits = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            foreach (int megabytes in new[] { 8, 25, 50, 100 })
+                limits.Children.Add(Button(megabytes + " MB", () => { Set("targetKB", (megabytes * 1024).ToString()); return Task.CompletedTask; }));
+            limits.Children.Add(Button(L.T("不限制"), () => { Set("targetKB", "0"); return Task.CompletedTask; }));
+            parameters.Children.Insert(parameters.Children.IndexOf(controls["targetKB"]) + 1, limits);
+        }
+        if (Presets.Supported(operation.Id))
+            AddPresetBar(parameters);
+        if (Rotating)
+        {
+            var angleBox = (TextBox)controls["angle"];
+            parameters.Children.Remove(angleBox); parameters.Children.Remove(fieldLabels["angle"]);
+            angleBox.Width = 76; angleBox.HorizontalContentAlignment = HorizontalAlignment.Center;
+            System.Windows.Automation.AutomationProperties.SetName(angleBox, RotationDial.Caption);
+            var heading = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 8) };
+            var value = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            value.Children.Add(angleBox); value.Children.Add(new TextBlock { Text = "°", Margin = new Thickness(5, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = UiTheme.Muted });
+            DockPanel.SetDock(value, Dock.Right); heading.Children.Add(value);
+            Task Turn(int quarters)
+            {
+                _ = double.TryParse(Get("angle", "0"), NumberStyles.Float, CultureInfo.InvariantCulture, out double angle);
+                Set("angle", RotationDial.Signed(angle + 90 * quarters).ToString("0.#", CultureInfo.InvariantCulture)); return Task.CompletedTask;
+            }
+            var turnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 8, 0) };
+            turnButtons.Children.Add(Button(L.T("↺ 向左转 90°"), () => Turn(-1)));
+            turnButtons.Children.Add(Button(L.T("↻ 向右转 90°"), () => Turn(1)));
+            DockPanel.SetDock(turnButtons, Dock.Right); heading.Children.Add(turnButtons);
+            heading.Children.Add(new TextBlock { Text = RotationDial.Caption, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Medium });
+            rotationPanel!.Children.Add(heading);
+            var dial = new RotationDial(); rotationPanel.Children.Add(dial);
+            rotationPanel.Children.Add(new TextBlock { Text = RotationDial.Help, Foreground = UiTheme.Muted, FontSize = 10, Margin = new Thickness(0, 6, 0, 0), TextAlignment = TextAlignment.Center });
+            bool syncingAngle = false;
+            void ShowCornerFields()
+            {
+                _ = double.TryParse(Get("angle", "0"), NumberStyles.Float, CultureInfo.InvariantCulture, out double angle);
+                var visible = angle % 90 != 0 ? Visibility.Visible : Visibility.Collapsed;
+                foreach (string name in new[] { "expand", "background" })
+                    controls[name].Visibility = fieldLabels[name].Visibility = name == "background" && Get("expand") == "crop" ? Visibility.Collapsed : visible;
+            }
+            dial.ValueChanged += (_, _) => { if (!syncingAngle) { syncingAngle = true; angleBox.Text = dial.Value.ToString("0.#", CultureInfo.InvariantCulture); syncingAngle = false; } };
+            angleBox.TextChanged += (_, _) =>
+            {
+                if (!syncingAngle && double.TryParse(angleBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double typed) && typed is >= -180 and <= 180)
+                { syncingAngle = true; dial.Value = typed; syncingAngle = false; }
+                ShowCornerFields();
+            };
+            angleBox.LostKeyboardFocus += (_, _) =>
+            {
+                if (!double.TryParse(angleBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double typed) || !double.IsFinite(typed)) typed = dial.Value;
+                angleBox.Text = Math.Clamp(Math.Round(typed, 1), -180, 180).ToString("0.#", CultureInfo.InvariantCulture);
+            };
+            ShowCornerFields();
+            ((ComboBox)controls["expand"]).SelectionChanged += (_, _) => ShowCornerFields();
         }
         if (operation.Id is "redactImage" or "redactVideo")
         {
@@ -356,6 +468,9 @@ internal sealed class ToolWindow : Window
         revealButton = Button(L.T("打开输出位置"), () => { if (lastOutput != null) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + lastOutput + "\"") { UseShellExecute = true }); return Task.CompletedTask; });
         revealButton.Visibility = Visibility.Collapsed;
         actions.Children.Add(revealButton);
+        copyButton = Button(L.T("复制结果"), () => { CopyResult(); return Task.CompletedTask; });
+        copyButton.Visibility = Visibility.Collapsed;
+        actions.Children.Add(copyButton);
         cancelButton = Button(L.T("取消处理"), () => { saving?.Cancel(); cancelButton.IsEnabled = false; status.Text = L.T("正在停止处理…"); return Task.CompletedTask; });
         cancelButton.Visibility = Visibility.Collapsed;
         actions.Children.Add(cancelButton);
@@ -371,7 +486,7 @@ internal sealed class ToolWindow : Window
         root.Children.Add(bottom);
         return root;
     }
-    private static string Choice(string value) => value switch { "solid" => L.T("纯色遮盖"), "blur" => L.T("模糊"), "pixelate" => L.T("马赛克"), "free" => L.T("自由"), "custom" => L.T("自定义"), "grid" => L.T("网格"), "row" => L.T("一行"), "column" => L.T("一列"), "featured" => L.T("主图布局"), "landscape" => L.T("横向"), "portrait" => L.T("纵向"), "square" => L.T("正方形"), "mono" => L.T("单声道"), "stereo" => L.T("双声道"), _ => value };
+    private static string Choice(string value) => value switch { "crop" => L.T("自动裁剪，去除空白边角"), "expand" => L.T("放大画布，保留整张画面"), "keep" => L.T("保持原尺寸（允许空白角）"), "none" => L.T("不翻转"), "horizontal" => L.T("左右翻转"), "vertical" => L.T("上下翻转"), "percent" => L.T("按比例"), "edge" => L.T("按最长边"), "size" => L.T("指定宽高"), "single" => L.T("单个"), "tiled" => L.T("平铺"), "original" => L.T("保持原样"), "add" => L.T("添加密码"), "remove" => L.T("移除密码"), "bottomRight" => L.T("右下"), "bottomCenter" => L.T("下中"), "bottomLeft" => L.T("左下"), "middleRight" => L.T("右中"), "center" => L.T("正中"), "middleLeft" => L.T("左中"), "topRight" => L.T("右上"), "topCenter" => L.T("上中"), "topLeft" => L.T("左上"), "solid" => L.T("纯色遮盖"), "blur" => L.T("模糊"), "pixelate" => L.T("马赛克"), "free" => L.T("自由"), "custom" => L.T("自定义"), "grid" => L.T("网格"), "row" => L.T("一行"), "column" => L.T("一列"), "featured" => L.T("主图布局"), "landscape" => L.T("横向"), "portrait" => L.T("纵向"), "square" => L.T("正方形"), "mono" => L.T("单声道"), "stereo" => L.T("双声道"), _ => value };
     private static Button Button(string text, Func<Task> click)
     {
         var button = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 0, 6, 5) };
@@ -380,7 +495,7 @@ internal sealed class ToolWindow : Window
     }
     private async Task Initialize()
     {
-        using var busy = activity.Begin(L.T("正在读取文件"), Path.GetFileName(paths[0]));
+        using var busy = busyLine.Begin();
         loaded = false;
         saveButton.IsEnabled = false;
         framePicker.IsEnabled = false;
@@ -411,8 +526,16 @@ internal sealed class ToolWindow : Window
                 framePicker.Visibility = Visibility.Visible;
                 imageFrame = info.GetProperty("Frame").GetInt32();
             }
-            if (originalWidth > 0)
-            { Set("width", originalWidth.ToString()); Set("height", originalHeight.ToString()); details.Text = L.F("{0} × {1} 像素", originalWidth, originalHeight); }
+            if (originalWidth > 0 && operation.Id != "resizeImage")
+            {
+                Set("x", "0");
+                Set("y", "0");
+                Set("width", originalWidth.ToString());
+                Set("height", originalHeight.ToString());
+                details.Text = L.F("{0} × {1} 像素", originalWidth, originalHeight);
+                if (Cropping)
+                    cropFrame.SetSource(originalWidth, originalHeight);
+            }
             if (totalDuration > 0)
             { timeline.Maximum = Math.Max(.001, totalDuration - .001); transport?.SetDuration(totalDuration); Set("end", totalDuration.ToString("0.000", CultureInfo.InvariantCulture)); details.Text += L.F("  · {0:0.00} 秒", totalDuration); if (Catalog.Category(paths[0]) == "video") details.Text += $" · {fps:0.##} fps"; positionLabel.Text = L.F("预览位置  {0:0.000} / {1:0.000} 秒", timeline.Value, totalDuration); }
             metadataText = JsonSerializer.Serialize(info.GetProperty("Metadata"), new JsonSerializerOptions { WriteIndented = true });
@@ -432,11 +555,15 @@ internal sealed class ToolWindow : Window
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { status.Text = L.T("预览不可用：") + ex.Message + L.T("。仍可填写参数。"); }
+        if (Presets.Supported(operation.Id) && Presets.Last(operation.Id) is { } remembered)
+            ApplyValues(remembered);
         loaded = true;
+        UpdateRotationPreview();
         saveButton.IsEnabled = true;
         framePicker.IsEnabled = true;
         SetMetadataState();
         SyncTrimRange();
+        UpdateCropVisibility();
     }
     private void Set(string name, string value)
     {
@@ -444,6 +571,8 @@ internal sealed class ToolWindow : Window
             return;
         if (control is TextBox text)
             text.Text = value;
+        if (control is CheckBox check)
+            check.IsChecked = value == "true";
         if (control is ComboBox combo)
             foreach (ComboBoxItem item in combo.Items)
                 if (item.Tag?.ToString() == value)
@@ -452,9 +581,21 @@ internal sealed class ToolWindow : Window
     private string Get(string name, string fallback = "") => controls.TryGetValue(name, out var control) ? control switch { MetadataEditor table => table.ToJson(), TextBox text => text.Text, CheckBox check => check.IsChecked == true ? "true" : "false", ComboBox combo => ((ComboBoxItem?)combo.SelectedItem)?.Tag?.ToString() ?? fallback, PasswordBox pass => pass.Password, _ => fallback } : fallback;
     private ConversionJob Capture()
     {
+        if (Cropping && cropFrame.HasSource)
+        {
+            // The frame is the truth: typed values that disagree with it (out of bounds, wrong ratio) are replaced by it.
+            cropFrame.Ratio = CurrentRatio();
+            WriteCropFields();
+        }
         var values = new Dictionary<string, string>();
         foreach (var field in operation.Fields ?? [])
             values[field.Name] = Get(field.Name, field.Default);
+        if (Rotating && double.TryParse(values["angle"], NumberStyles.Float, CultureInfo.InvariantCulture, out double rotation))
+        {
+            if (!double.IsFinite(rotation) || rotation is < -180 or > 180)
+                throw new ArgumentException(L.English ? "Rotation must be between −180° and +180°." : "旋转角度需在 −180° 到 +180° 之间。");
+            values["angle"] = RotationDial.BackendAngle(rotation).ToString("0.#", CultureInfo.InvariantCulture);
+        }
         if (values.TryGetValue("ratio", out var selectedRatio) && selectedRatio != "custom")
         { values["ratioWidth"] = "3"; values["ratioHeight"] = "2"; }
         if (values.TryGetValue("style", out var selectedStyle) && selectedStyle != "pixelate")
@@ -504,26 +645,146 @@ internal sealed class ToolWindow : Window
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(closing.Token);
         previewCancellation = cancellation;
         status.Text = L.T("更新效果中…");
-        using var busy = activity.Begin(L.T("正在生成预览"), Path.GetFileName(paths[0]));
+        using var busy = busyLine.Begin();
         try
         {
             await previewGate.WaitAsync(cancellation.Token);
             try
             {
                 var info = await Backend.Preview(Capture(), folder, cancellation.Token);
-                if (version != previewVersion)
+                if (version != previewVersion || cropFrame.IsDragging)
                     return;
                 if (info.TryGetProperty("SourcePreview", out var source))
                     originalPreview = source.GetString();
                 var preview = info.GetProperty("Preview").GetString();
                 if (preview != null)
-                { player.Visibility = Visibility.Collapsed; player.Stop(); SetImage(preview); selection.Visibility = Visibility.Collapsed; showingOriginal = false; if (compareButton != null) compareButton.Content = L.T("查看原始"); status.Text = L.T("预览已更新；保存后生成新文件。"); }
+                { player.Visibility = Visibility.Collapsed; player.Stop(); SetImage(preview); selection.Visibility = Visibility.Collapsed; showingOriginal = false; if (compareButton != null) compareButton.Content = L.T("查看原始"); status.Text = L.T("预览已更新；保存后生成新文件。"); UpdateCropVisibility(); }
             }
             finally { previewGate.Release(); }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (version == previewVersion) status.Text = L.T("预览：") + ex.Message; }
         finally { cancellation.Dispose(); if (ReferenceEquals(previewCancellation, cancellation)) previewCancellation = null; }
+    }
+    private void UpdateRotationPreview()
+    {
+        double width = previewHost.ActualWidth, height = previewHost.ActualHeight;
+        if (!Rotating || originalWidth == 0 || width <= 0 || height <= 0)
+            return;
+        if (!double.TryParse(Get("angle", "0"), NumberStyles.Float, CultureInfo.InvariantCulture, out double angle) || !double.IsFinite(angle)) return;
+        angle = Math.Clamp(angle, -180, 180);
+        string flip = Get("flip", "none");
+        string canvas = Get("expand", HasMedia ? "expand" : "crop");
+        bool quarter = angle % 90 == 0, keep = !quarter && canvas == "keep", cropEmpty = !quarter && !HasMedia && canvas == "crop";
+        // The picture is shown fitted to the preview; the rotated picture (or, when the size is kept, the original frame) is then fitted again.
+        double fit = Math.Min(width / originalWidth, height / originalHeight), shownWidth = originalWidth * fit, shownHeight = originalHeight * fit;
+        double radians = angle * Math.PI / 180, cos = Math.Abs(Math.Cos(radians)), sin = Math.Abs(Math.Sin(radians));
+        var cropped = cropEmpty ? RotationGeometry.CropSize(originalWidth, originalHeight, angle) : (Width: originalWidth, Height: originalHeight);
+        double boxWidth = cropEmpty ? cropped.Width * fit : keep ? shownWidth : shownWidth * cos + shownHeight * sin;
+        double boxHeight = cropEmpty ? cropped.Height * fit : keep ? shownHeight : shownWidth * sin + shownHeight * cos;
+        double zoom = keep ? 1 : Math.Min(width / boxWidth, height / boxHeight);
+        var turn = new TransformGroup();
+        turn.Children.Add(new RotateTransform(angle));
+        turn.Children.Add(new ScaleTransform(flip == "horizontal" ? -1 : 1, flip == "vertical" ? -1 : 1));
+        turn.Children.Add(new ScaleTransform(zoom, zoom));
+        foreach (FrameworkElement element in new FrameworkElement[] { image, player })
+        { element.RenderTransformOrigin = new Point(.5, .5); element.RenderTransform = turn; }
+        Color fill = Color.FromRgb(228, 231, 236);   // empty corners of a picture without a fill colour: transparent in the file
+        if (Path.GetExtension(paths[0]).ToLowerInvariant() is ".jpg" or ".jpeg" or ".bmp") fill = Colors.White;
+        try { if (!string.IsNullOrWhiteSpace(Get("background")) && ColorConverter.ConvertFromString(Get("background").Trim()) is Color chosen) fill = chosen; }
+        catch (FormatException) { }
+        rotatePlate.Visibility = quarter || cropEmpty ? Visibility.Collapsed : Visibility.Visible;
+        rotatePlate.Width = boxWidth * zoom;
+        rotatePlate.Height = boxHeight * zoom;
+        rotatePlate.Background = new SolidColorBrush(fill);
+        // Keeping the original size cuts off whatever leaves the original frame.
+        rotateStage.Clip = cropEmpty ? new RectangleGeometry(new Rect((width - boxWidth * zoom) / 2, (height - boxHeight * zoom) / 2, boxWidth * zoom, boxHeight * zoom))
+            : keep ? new RectangleGeometry(new Rect((width - shownWidth) / 2, (height - shownHeight) / 2, shownWidth, shownHeight)) : null;
+        if (!HasMedia)
+        {
+            int outWidth = cropEmpty ? cropped.Width : keep ? originalWidth : (int)Math.Round(originalWidth * cos + originalHeight * sin);
+            int outHeight = cropEmpty ? cropped.Height : keep ? originalHeight : (int)Math.Round(originalWidth * sin + originalHeight * cos);
+            details.Text = L.F("{0} × {1} 像素", originalWidth, originalHeight) + (outWidth == originalWidth && outHeight == originalHeight ? "" : L.F(" → {0} × {1} 像素", outWidth, outHeight));
+        }
+    }
+    private void ApplyValues(Dictionary<string, string> values)
+    {
+        foreach (var (name, value) in values)
+            if (Presets.Keeps(name))
+                Set(name, value);
+    }
+    private Dictionary<string, string> PresetValues() => (operation.Fields ?? []).Where(f => Presets.Keeps(f.Name) && f.Kind != "password").ToDictionary(f => f.Name, f => Get(f.Name, f.Default));
+    private void AddPresetBar(Panel parameters)
+    {
+        var names = new ComboBox { MinWidth = 120, Margin = new Thickness(0, 0, 6, 0) };
+        void Reload()
+        {
+            names.Items.Clear();
+            names.Items.Add(new ComboBoxItem { Content = L.T("预设…"), Tag = "" });
+            foreach (string name in Presets.Names(operation.Id))
+                names.Items.Add(new ComboBoxItem { Content = name, Tag = name });
+            names.SelectedIndex = 0;
+        }
+        names.SelectionChanged += (_, _) =>
+        {
+            if (names.SelectedItem is ComboBoxItem { Tag: string name } && name.Length > 0 && Presets.Named(operation.Id, name) is { } values)
+            { ApplyValues(values); ParameterChanged(); status.Text = L.F("已应用预设“{0}”。", name); }
+        };
+        var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+        row.Children.Add(names);
+        row.Children.Add(Button(L.T("保存为预设"), () =>
+        {
+            string? name = PromptName();
+            if (!string.IsNullOrWhiteSpace(name))
+            { Presets.SaveNamed(operation.Id, name.Trim(), PresetValues()); Reload(); status.Text = L.F("已保存预设“{0}”。", name.Trim()); }
+            return Task.CompletedTask;
+        }));
+        row.Children.Add(Button(L.T("删除预设"), () =>
+        {
+            if (names.SelectedItem is ComboBoxItem { Tag: string name } && name.Length > 0)
+            { Presets.Delete(operation.Id, name); Reload(); }
+            return Task.CompletedTask;
+        }));
+        Reload();
+        parameters.Children.Insert(Math.Min(1, parameters.Children.Count), row);
+    }
+    private string? PromptName()
+    {
+        var box = new TextBox { Padding = new Thickness(8), Margin = new Thickness(0, 0, 0, 12) };
+        var dialog = new Window { Title = L.T("预设名称"), Owner = this, Width = 340, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Background = Background, FontFamily = FontFamily };
+        var ok = new Button { Content = L.T("保存"), IsDefault = true, Padding = new Thickness(18, 7, 18, 7), HorizontalAlignment = HorizontalAlignment.Right };
+        ok.Click += (_, _) => dialog.DialogResult = true;
+        var stack = new StackPanel { Margin = new Thickness(18) };
+        stack.Children.Add(new TextBlock { Text = L.T("给这组设置起个名字："), Margin = new Thickness(0, 0, 0, 8) });
+        stack.Children.Add(box);
+        stack.Children.Add(ok);
+        dialog.Content = stack;
+        dialog.Loaded += (_, _) => box.Focus();
+        return dialog.ShowDialog() == true ? box.Text : null;
+    }
+    private void CopyResult()
+    {
+        if (lastOutput == null || !File.Exists(lastOutput))
+            return;
+        try
+        {
+            string extension = Path.GetExtension(lastOutput).ToLowerInvariant();
+            if (extension is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp" or ".tiff" or ".ico")
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(lastOutput);
+                bitmap.EndInit();
+                Clipboard.SetImage(bitmap);
+            }
+            else if (extension == ".txt")
+                Clipboard.SetText(File.ReadAllText(lastOutput));
+            else
+                Clipboard.SetFileDropList([lastOutput]);
+            status.Text = L.T("已复制到剪贴板。");
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or IOException or NotSupportedException) { status.Text = L.T("复制失败：") + ex.Message; }
     }
     private void SetImage(string path)
     {
@@ -553,6 +814,124 @@ internal sealed class ToolWindow : Window
         order.Items.Insert(next, item);
         order.SelectedIndex = next;
     }
+    private void AddCropFrame()
+    {
+        if (operation.Id == "cropImage")
+            previewHost.Height = 350;
+        previewHost.Children.Add(cropFrame);
+        cropFrame.Visibility = Visibility.Collapsed;
+        System.Windows.Automation.AutomationProperties.SetName(cropFrame, L.T("裁剪选区"));
+        cropFrame.DragStarted += () =>
+        {
+            // Grabbing the frame means the result preview is out of date, and a request still in flight is of no use.
+            cropFrame.Ratio = CurrentRatio();
+            previewDelay.Stop();
+            previewCancellation?.Cancel();
+            previewVersion++;
+            transport?.Pause();
+            if (status.Text == L.T("更新效果中…"))
+                status.Text = L.T("调整参数后保存；新文件保存在原目录。");
+        };
+        cropFrame.Changed += () => WriteCropFields();
+        cropFrame.DragEnded += () => { WriteCropFields(); transport?.InvalidateEffect(); };
+    }
+    // The frame is shown over the original picture; the cropped result and the video's "result" view replace it.
+    private void UpdateCropVisibility() =>
+        cropFrame.Visibility = Cropping && loaded && cropFrame.HasSource && showingOriginal && transport?.EffectSelected != true ? Visibility.Visible : Visibility.Collapsed;
+    private CropRatio? CurrentRatio()
+    {
+        string ratio = Get("ratio", "free");
+        return CropRatio.Parse(ratio == "custom" ? Get("ratioWidth") + ":" + Get("ratioHeight") : ratio);
+    }
+    private bool TryReadCropFields(out CropRect rect)
+    {
+        rect = default;
+        var numbers = new double[4];
+        string[] names = ["x", "y", "width", "height"];
+        for (int i = 0; i < 4; i++)
+            if (!double.TryParse(Get(names[i]), NumberStyles.Float, CultureInfo.InvariantCulture, out numbers[i]) || !double.IsFinite(numbers[i]) || Math.Abs(numbers[i]) > int.MaxValue)
+                return false;
+        rect = new CropRect((int)numbers[0], (int)numbers[1], (int)numbers[2], (int)numbers[3]);
+        return true;
+    }
+    // Typed values move the frame. Numbers that are still being typed (too small, not a number yet) are left alone.
+    private void FieldsToCropFrame()
+    {
+        if (!cropFrame.HasSource || !TryReadCropFields(out var typed))
+            return;
+        var ratio = CurrentRatio();
+        cropFrame.Ratio = ratio;
+        int min = cropFrame.MinSize;
+        if (typed.Width < min || typed.Height < min)
+            return;
+        var keep = ratio == null ? CropKeep.Nothing : editedField == "width" ? CropKeep.Width : editedField == "height" ? CropKeep.Height : CropKeep.Nothing;
+        var next = CropMath.Constrain(typed, originalWidth, originalHeight, ratio, min, keep);
+        if (next != cropFrame.Crop)
+            cropFrame.SetCrop(next);
+        // The box being typed in is left alone so the cursor does not jump; the others follow the frame.
+        WriteCropFields(editedField);
+        if (!showingOriginal && originalPreview != null)
+            ShowOriginalWithFrame();
+    }
+    private void WriteCropFields(string? except = null)
+    {
+        if (!cropFrame.HasSource)
+            return;
+        var crop = cropFrame.Crop;
+        bool was = syncingRegion;
+        syncingRegion = true;
+        try
+        {
+            if (except != "x") Set("x", crop.X.ToString(CultureInfo.InvariantCulture));
+            if (except != "y") Set("y", crop.Y.ToString(CultureInfo.InvariantCulture));
+            if (except != "width") Set("width", crop.Width.ToString(CultureInfo.InvariantCulture));
+            if (except != "height") Set("height", crop.Height.ToString(CultureInfo.InvariantCulture));
+        }
+        finally { syncingRegion = was; }
+    }
+    private void ShowOriginalWithFrame()
+    {
+        if (originalPreview != null)
+        { player.Stop(); player.Visibility = Visibility.Collapsed; SetImage(originalPreview); }
+        showingOriginal = true;
+        if (compareButton != null)
+            compareButton.Content = L.T("查看效果");
+        UpdateCropVisibility();
+    }
+    private void ResetCrop()
+    {
+        if (!cropFrame.HasSource)
+            return;
+        bool was = syncingRegion;
+        syncingRegion = true;
+        try { Set("ratio", "free"); }
+        finally { syncingRegion = was; }
+        cropFrame.Ratio = null;
+        cropFrame.SetCrop(new CropRect(0, 0, originalWidth, originalHeight));
+        WriteCropFields();
+        previewDelay.Stop();
+        ShowOriginalWithFrame();
+        transport?.InvalidateEffect();
+    }
+    // For screenshots and manual checks: puts the window into a known state (see the --debug-tool-render mode).
+    internal void DebugScene(string scene)
+    {
+        foreach (string part in scene.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (part == "busy")
+            { busyLine.ShowDelay = TimeSpan.Zero; busyLine.Begin(); }
+            else if (part.StartsWith("angle=") && Rotating)
+                Set("angle", part[6..]);
+            else if (part.StartsWith("ratio=") && controls.ContainsKey("ratio"))
+            { Set("ratio", part[6..]); editedField = "ratio"; ParameterChanged(); }
+            else if (part.StartsWith("crop=") && cropFrame.HasSource)
+            {
+                int[] v = part[5..].Split(',').Select(int.Parse).ToArray();
+                cropFrame.SetCrop(CropMath.Constrain(new CropRect(v[0], v[1], v[2], v[3]), originalWidth, originalHeight, CurrentRatio(), cropFrame.MinSize));
+                WriteCropFields();
+            }
+        }
+    }
     private Point SourcePoint(Point point)
     {
         double scale = Math.Min(previewHost.ActualWidth / Math.Max(1, originalWidth), previewHost.ActualHeight / Math.Max(1, originalHeight));
@@ -564,7 +943,7 @@ internal sealed class ToolWindow : Window
         bool audio = operation.Id is "redactAudio" or "trimAudio";
         if (!loaded || saving != null)
             return;
-        if (!audio && (operation.Id is not ("cropImage" or "cropVideo" or "redactImage" or "redactVideo") || originalWidth == 0))
+        if (!audio && (operation.Id is not ("redactImage" or "redactVideo") || originalWidth == 0))
             return;
         if (HasMedia)
         { if (transport?.EffectSelected == true) { status.Text = L.T("请切换到原文件，再选择画面或音频范围。"); return; } transport?.Pause(); }
@@ -639,6 +1018,10 @@ internal sealed class ToolWindow : Window
             return;
         SyncTrimRange();
         transport?.InvalidateEffect();
+        if (Cropping)
+            FieldsToCropFrame();
+        if (Rotating)
+            UpdateRotationPreview();
         if (regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, object> r)
         {
             try
@@ -652,7 +1035,7 @@ internal sealed class ToolWindow : Window
             { range["start"] = TimeValue(Get("start", "0")); range["end"] = TimeValue(Get("end", "0")); audioItem.Content = L.F("{0:0.000}–{1:0.000} 秒", range["start"], range["end"]); }
             catch (ArgumentException) { }
         }
-        if (RefreshFrame && !HasMedia)
+        if (LivePreview)
             SchedulePreview();
     }
     private void SyncTrimRange()
@@ -672,16 +1055,19 @@ internal sealed class ToolWindow : Window
         try
         { job = Capture(); }
         catch (Exception ex) { status.Text = ex.Message; status.Foreground = UiTheme.Accent; return; }
+        if (operation.Id is "rotateImage" or "rotateVideo" && double.TryParse(Get("angle", "0"), NumberStyles.Float, CultureInfo.InvariantCulture, out double chosenAngle) && chosenAngle % 360 == 0 && Get("flip", "none") == "none")
+        { status.Text = L.T("请选择旋转角度或翻转方式。"); status.Foreground = UiTheme.Accent; return; }
         saving = CancellationTokenSource.CreateLinkedTokenSource(closing.Token);
         previewDelay.Stop();
         previewCancellation?.Cancel();
         transport?.Stop();
         player.Stop();
         player.Source = null;
-        using var busy = activity.Begin(L.T("正在保存新文件"), Path.GetFileName(paths[0]));
+        using var busy = busyLine.Begin();
         bodyPanel.IsEnabled = false;
         saveButton.IsEnabled = false;
         revealButton.Visibility = Visibility.Collapsed;
+        copyButton.Visibility = Visibility.Collapsed;
         cancelButton.Visibility = Visibility.Visible;
         cancelButton.IsEnabled = true;
         status.Foreground = UiTheme.Muted;
@@ -692,7 +1078,7 @@ internal sealed class ToolWindow : Window
             var success = result.Files.Where(f => f.Output != null).ToArray();
             var failures = result.Files.Where(f => f.Error != null).ToArray();
             if (success.Length > 0)
-            { lastOutput = success[^1].Output; revealButton.Visibility = Visibility.Visible; }
+            { lastOutput = success[^1].Output; revealButton.Visibility = Visibility.Visible; copyButton.Visibility = Visibility.Visible; if (Presets.Supported(operation.Id)) Presets.SaveLast(operation.Id, PresetValues()); }
             status.Text = failures.Length == 0 ? L.F("已保存 {0} 项：{1}", success.Length, Path.GetFileName(lastOutput)) : L.F("成功 {0} 项，失败 {1} 项：{2}", success.Length, failures.Length, failures[0].Error);
             Journal.Write("ToolSaved", new { job.Action, success = success.Length, failures = failures.Length });
         }
@@ -704,14 +1090,14 @@ internal sealed class ToolWindow : Window
     {
         if (Catalog.Category(paths[0]) != "video")
         { timeline.Value = Math.Clamp(timeline.Value + direction * .1, 0, totalDuration); return; }
-        using var busy = activity.Begin(L.T("正在定位视频帧"), Path.GetFileName(paths[0]));
+        using var busy = busyLine.Begin();
         try
         { var job = Capture(); job.Parameters!["direction"] = direction.ToString(); job.Parameters["time"] = timeline.Value.ToString(CultureInfo.InvariantCulture); var info = await Backend.Preview(job, folder, closing.Token, "--frame-step"); timeline.Value = info.GetProperty("Time").GetDouble(); }
         catch (Exception ex) { status.Text = L.T("逐帧：") + ex.Message; }
     }
     private async Task<JsonElement> PreparePlayback(bool effect, string source, double time, CancellationToken token)
     {
-        using var busy = activity.Begin(effect ? L.T("正在准备处理效果") : L.T("正在准备兼容播放"), Path.GetFileName(source));
+        using var busy = busyLine.Begin();
         var job = effect ? Capture() : new ConversionJob([source], "preview-original", new());
         job.Parameters!["time"] = time.ToString(CultureInfo.InvariantCulture);
         if (!effect)

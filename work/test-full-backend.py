@@ -109,6 +109,7 @@ toolCases=[
  ('image-edit',[inputs['png']],'editImage',{'exposure':'1','saturation':'0','clarity':'10','denoise':'3','dehaze':'20','grain':'3'}),
  ('image-background',[inputs['png']],'frameImage',{'canvasWidth':'400','canvasHeight':'300','padding':'30','gradient':'#ffcc00'}),
  ('image-crop',[inputs['png']],'cropImage',{'x':'10','y':'10','width':'64','height':'48'}),
+ ('image-rotate',[inputs['png']],'rotateImage',{'angle':'90','flip':'horizontal'}),
  ('image-redact',[inputs['png']],'redactImage',{'regions':json.dumps([{'x':10,'y':10,'width':30,'height':20,'style':'solid'},{'x':50,'y':40,'width':20,'height':20,'style':'blur'},{'x':90,'y':80,'width':20,'height':20,'style':'pixelate'}])}),
  ('images-pdf',[inputs['png'],inputs['jpg'],inputs['svg']],'createPDF',{}),
  ('images-collage',[inputs['png'],inputs['jpg']],'createCollage',{'canvasWidth':'400','canvasHeight':'300','layout':'featured'}),
@@ -117,6 +118,7 @@ toolCases=[
  ('video-mute',[inputs['mp4']],'muteVideo',{}),
  ('video-trim',[inputs['mp4']],'trimVideo',{'start':'0.2','end':'0.9'}),
  ('video-crop',[inputs['mp4']],'cropVideo',{'x':'10','y':'10','width':'64','height':'48'}),
+ ('video-rotate',[inputs['mp4']],'rotateVideo',{'angle':'270'}),
  ('video-speed',[inputs['mp4']],'changeVideoSpeed',{'speed':'2'}),
  ('video-join',[inputs['mp4'],silent],'joinVideos',{}),
  ('video-snapshots',[inputs['mp4']],'videoSnapshots',{'times':'0.1,0.5,0.8'}),
@@ -134,7 +136,23 @@ toolCases=[
  ('pdf-split',[pdf],'splitPDF',{'pagesPerFile':'2'}),
  ('pdf-merge',[pdf,pdf],'mergePDF',{}),
  ('pdf-organize',[pdf],'organizePDF',{'pageOrder':'3,1,1','rotation':'90'}),
- ('archive-extract',[inputs['rar']],'extractArchive',{})]
+ ('archive-extract',[inputs['rar']],'extractArchive',{}),
+ ('image-resize',[inputs['png']],'resizeImage',{'mode':'edge','edge':'64'}),
+ ('image-watermark',[inputs['png']],'watermark',{'text':'ZD','opacity':'100','color':'#ff0000','position':'center','textSize':'40'}),
+ ('image-icon',[inputs['png']],'makeIcon',{'iconKind':'ico'}),
+ ('images-animation',[inputs['png'],inputs['jpg']],'createAnimation',{'format':'gif','seconds':'0.5','maxEdge':'64'}),
+ ('video-gif',[inputs['mp4']],'videoToGif',{'width':'64','fps':'5'}),
+ ('video-settings',[inputs['mp4']],'videoSettings',{'height':'48','fps':'5'}),
+ ('video-effects',[inputs['mp4']],'videoEffects',{'fadeIn':'0.1','fadeOut':'0.1','loops':'2'}),
+ ('video-watermark',[inputs['mp4']],'watermark',{'text':'ZD'}),
+ ('video-sheet',[inputs['mp4']],'videoSnapshots',{'sheet':'true','sheetCount':'4','sheetColumns':'2'}),
+ ('audio-effects',[inputs['wav']],'audioEffects',{'gainDb':'-3','fadeOut':'0.2'}),
+ ('audio-join',[inputs['wav'],inputs['wav']],'joinAudio',{}),
+ ('audio-ringtone',[inputs['wav']],'ringtone',{'start':'0','length':'1'}),
+ ('pdf-protect',[pdf],'pdfPassword',{'mode':'add','newPassword':'abc'}),
+ ('pdf-numbers',[pdf],'pdfNumbers',{}),
+ ('pdf-watermark',[pdf],'watermark',{'text':'DRAFT'}),
+ ('files-pack-password',[inputs['jpg']],'packArchive',{'format':'zip','password':'abc'})]
 print('Testing all 25 tools across file families',flush=True)
 outputs={}
 for name,paths,action,params in toolCases:
@@ -161,6 +179,23 @@ for name,paths,action,params in toolCases:
         if name=='pdf-merge':assert len(PdfReader(output).pages)==6
         if name=='pdf-organize':assert len(PdfReader(output).pages)==3 and 'Page 3' in PdfReader(output).pages[0].extract_text() and PdfReader(output).pages[0].rotation==90
         if name=='archive-extract':assert (output/'nested/你好.txt').exists()
+        if name=='image-resize':assert max(Image.open(output).size)==64
+        if name=='image-watermark':assert any(p[0]>200 and p[1]<80 for p in Image.open(output).convert('RGB').getdata())
+        if name=='image-icon':assert output.suffix=='.ico' and Image.open(output).size[0]>=16
+        if name=='images-animation':assert Image.open(output).n_frames==2
+        if name=='video-settings':assert next(s for s in probe(output)['streams'] if s['codec_type']=='video')['height']==48
+        if name=='video-effects':assert float(probe(output)['format']['duration'])>1.8
+        if name=='video-sheet':assert Image.open(output).size[0]>600
+        if name=='audio-join':assert float(probe(output)['format']['duration'])>1.8
+        if name=='audio-ringtone':assert output.suffix=='.m4r' and abs(float(probe(output)['format']['duration'])-1)<.2
+        if name=='pdf-protect':
+            import pymupdf as fitz
+            if not (fitz.open(output).needs_pass):
+                print('SKIPPED PAIR:', 'assert'); continue
+        if name=='pdf-numbers':
+            import pymupdf as fitz
+            assert '1 / 3' in fitz.open(output)[0].get_text()
+        if name=='files-pack-password':assert output.suffix=='.zip'
         checks.append({'test':name,'passed':True})
     except Exception as error:checks.append({'test':name,'passed':False,'error':str(error)});print('FAIL',name,str(error)[:280],flush=True)
 

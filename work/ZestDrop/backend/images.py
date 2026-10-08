@@ -1,7 +1,8 @@
 from pathlib import Path
-import io,json,math
+import json,math
 from PIL import Image,ImageOps,ImageEnhance,ImageFilter,ImageDraw,ImageFont,ExifTags,ImageChops
 from common import *
+import imagetools
 
 def convert(path,fmt,params):
     if fmt in ('pdf','docx'):
@@ -68,6 +69,29 @@ def crop(image,params):
     if x<0 or y<0 or w<=0 or h<=0 or x+w>image.width or y+h>image.height: raise ValueError(T('裁剪区域超出图片范围'))
     return image.crop((x,y,x+w,y+h))
 
+def rotate(image,params,required=True):
+    angle,flip=orientation(params,required); turn=Image.Transpose
+    if angle%90==0:
+        if angle: image=image.transpose({90:turn.ROTATE_270,180:turn.ROTATE_180,270:turn.ROTATE_90}[int(angle)])
+    else:
+        canvas=params.get('expand','crop')
+        if canvas not in ('crop','expand','keep'): raise ValueError('Invalid rotation canvas mode')
+        source_width,source_height=image.size
+        colour=None if canvas=='crop' else fill_colour(params)
+        if colour is None: image=image.convert('RGBA'); colour=(0,0,0,0)
+        elif image.mode not in ('RGB','RGBA'): image=image.convert('RGBA' if 'A' in image.getbands() else 'RGB')
+        image=image.rotate(-angle,Image.Resampling.BICUBIC,expand=canvas!='keep',fillcolor=colour)
+        if canvas=='crop':
+            radians=math.radians(angle); cosine,sine=abs(math.cos(radians)),abs(math.sin(radians))
+            inset=min(2,min(source_width,source_height)/8)
+            scale=min((source_width-2*inset)/(source_width*cosine+source_height*sine),
+                      (source_height-2*inset)/(source_width*sine+source_height*cosine))
+            width=max(1,math.floor(source_width*scale)); height=max(1,math.floor(source_height*scale))
+            x=(image.width-width)//2; y=(image.height-height)//2
+            image=image.crop((x,y,x+width,y+height))
+    if flip!='none': image=image.transpose(turn.FLIP_LEFT_RIGHT if flip=='horizontal' else turn.FLIP_TOP_BOTTOM)
+    return image
+
 def redact(image,params):
     image=image.copy()
     for r in rects(params,*image.size):
@@ -128,6 +152,7 @@ def collage(paths,params,preview=False):
     return state['output']
 
 def tool(path,action,params):
+    if action=='makeIcon': return imagetools.make_icon(path,params)
     image=open_image(path,params.get('imageFrame'))
     fmt=Path(path).suffix.lstrip('.').lower()
     if fmt in ('svg','heif'): fmt='png'
@@ -135,6 +160,11 @@ def tool(path,action,params):
     if fmt=='tif': fmt='tiff'
     if action=='cropImage': image=crop(image,params)
     elif action=='redactImage': image=redact(image,params)
+    elif action=='rotateImage': image=rotate(image,params)
+    elif action=='resizeImage': image=imagetools.resize(image,params)
+    elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),imagetools.watermark_layer(image.size,params))
+    elif action=='resizeImage': image=resize(image,params)
+    elif action=='watermark': image=Image.alpha_composite(image.convert('RGBA'),watermark_layer(image.size,params))
     elif action=='editImage': image=edit(image,params)
     elif action=='frameImage': image=framed(image,params); fmt='png'
     elif action=='compress':

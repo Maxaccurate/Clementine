@@ -66,6 +66,7 @@ internal static class JobValidation
         Range("leftGain", 0, 10);
         Range("rightGain", 0, 10);
         Range("quality", 1, Catalog.Category(job.Paths[0]) == "video" ? 51 : 100, true);
+        Range("angle", 0, 360);
         Range("exposure", -10, 10);
         Range("contrast", 0, 5);
         Range("saturation", 0, 5);

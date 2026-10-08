@@ -1,5 +1,5 @@
 from pathlib import Path
-import json,math
+import json
 from common import *
 
 AUDIO_CODECS={
@@ -51,6 +51,15 @@ def metadata_args(params):
     else:
         for key,val in values.items(): args+=['-metadata',f'{key}={val or ""}']
     return args
+
+def rotation_filters(params,required=True):
+    angle,flip=orientation(params,required)
+    if angle%90==0: turn={0:[],90:['transpose=1'],180:['hflip','vflip'],270:['transpose=2']}[int(angle)]
+    else:
+        radians=f'{angle}*PI/180'; red,green,blue=fill_colour(params,'#000000') or (0,0,0)
+        size=('iw','ih') if params.get('expand','expand')=='keep' else (f'rotw({radians})',f'roth({radians})')
+        turn=[f'rotate={radians}:ow={size[0]}:oh={size[1]}:c=0x{red:02x}{green:02x}{blue:02x}']
+    return [*turn,*{'none':[],'horizontal':['hflip'],'vertical':['vflip']}[flip]]
 
 def redact_graph(info,params):
     stream=video_stream(info); regions=rects(params,int(stream['width']),int(stream['height'])); graph=[]; current='0:v'
@@ -107,6 +116,10 @@ def join(paths,params):
     return state['output']
 
 def video_tool(path,action,params):
+    import mediatools
+    extra={'videoToGif':mediatools.video_to_gif,'videoSettings':mediatools.video_settings,'videoEffects':mediatools.video_effects,'subtitlesAudio':mediatools.subtitles_audio,'watermark':mediatools.video_watermark}
+    if action in extra: return extra[action](path,params)
+    if action=='videoSnapshots' and truth(params.get('sheet','false')): return mediatools.contact_sheet(path,params)
     if action=='splitVideo': return split_video(path,params)
     if action=='videoSnapshots': return snapshots(path,params)
     info=probe(path); fmt=Path(path).suffix.lstrip('.').lower()
@@ -126,6 +139,7 @@ def video_tool(path,action,params):
         if w>0 and h>0:w,h=fit_ratio(w,h,ratio)
         if min(w,h)<=0 or x<0 or y<0 or x+w>int(stream['width']) or y+h>int(stream['height']): raise ValueError(T('裁剪区域超出视频画面'))
         vf.append(f'crop={w}:{h}:{x}:{y}')
+    elif action=='rotateVideo': vf+=rotation_filters(params)
     elif action=='changeVideoSpeed':
         speed=number(params,'speed',2); vf.append(f'setpts=PTS/{speed}'); af.append(tempo(speed))
     elif action=='compress':
@@ -155,6 +169,9 @@ def video_tool(path,action,params):
     return state['output']
 
 def audio_tool(path,action,params):
+    import mediatools
+    if action=='audioEffects': return mediatools.audio_effects(path,params)
+    if action=='ringtone': return mediatools.ringtone(path,params)
     info=probe(path); fmt=Path(path).suffix.lstrip('.').lower(); fmt='aiff' if fmt=='aif' else fmt
     if action=='removeMetadata':
         with output_file(path,'metadata','.'+fmt) as state: ffmpeg(['-i',path,'-map','0:a:0','-c','copy',*metadata_args(params),state['temp']])

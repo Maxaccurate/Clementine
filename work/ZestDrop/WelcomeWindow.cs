@@ -1,4 +1,3 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -10,6 +9,9 @@ namespace ZestDrop;
 internal sealed class WelcomeWindow : Window
 {
     public const string HideAtStartKey = "hideWelcome";
+    private CheckBox? startup;
+    private TextBlock? startupMessage;
+    private Button? startupSettings;
 
     public WelcomeWindow()
     {
@@ -21,7 +23,9 @@ internal sealed class WelcomeWindow : Window
         Title = "ZestDrop";
         // Re-read every label if the language changes while the window is open (from the buttons below or the tray menu).
         L.Changed += Rebuild;
+        StartupManager.Changed += RefreshStartup;
         Closed += (_, _) => L.Changed -= Rebuild;
+        Closed += (_, _) => StartupManager.Changed -= RefreshStartup;
         Rebuild();
     }
 
@@ -55,6 +59,18 @@ internal sealed class WelcomeWindow : Window
         var hide = new CheckBox { Content = L.T("启动时不再显示此窗口"), IsChecked = Settings.GetBool(HideAtStartKey, false), Margin = new Thickness(0, 18, 0, 0), Foreground = UiTheme.Muted };
         hide.Click += (_, _) => Settings.Set(HideAtStartKey, hide.IsChecked == true);
         panel.Children.Add(hide);
+        startup = new CheckBox { Content = L.T("开机自启"), IsEnabled = false, Margin = new Thickness(0, 6, 0, 0), ToolTip = L.T("登录 Windows 后在后台运行，不打开欢迎窗口。") };
+        startupMessage = new TextBlock { Foreground = UiTheme.Muted, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(6, 3, 0, 0) };
+        startupSettings = new Button { Content = L.T("Windows 启动应用设置"), Visibility = Visibility.Collapsed, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(6, 5, 0, 0) };
+        startupSettings.Click += (_, _) => StartupManager.OpenWindowsSettings();
+        startup.Click += async (_, _) =>
+        {
+            startup.IsEnabled = false;
+            var status = await StartupManager.SetAsync(startup.IsChecked == true);
+            UpdateStartup(status);
+        };
+        panel.Children.Add(startup); panel.Children.Add(startupMessage); panel.Children.Add(startupSettings);
+        RefreshStartup();
 
         var footer = new DockPanel { Margin = new Thickness(0, 14, 0, 0) };
         var close = new Button { Content = L.T("知道了"), Background = UiTheme.Accent, Foreground = Brushes.White, BorderBrush = UiTheme.Accent, Padding = new Thickness(26, 9, 26, 9), IsDefault = true, IsCancel = true };
@@ -73,6 +89,14 @@ internal sealed class WelcomeWindow : Window
         footer.Children.Add(languages);
         panel.Children.Add(footer);
         return panel;
+    }
+    private async void RefreshStartup() => UpdateStartup(await StartupManager.GetAsync());
+    private void UpdateStartup(StartupStatus status)
+    {
+        if (startup == null || startupMessage == null || startupSettings == null) return;
+        startup.IsChecked = status.Enabled; startup.IsEnabled = status.CanChange;
+        startupMessage.Text = status.Message ?? L.T("登录 Windows 后在后台运行，不打开欢迎窗口。");
+        startupSettings.Visibility = status.Message == null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static UIElement Step(int number, string title, string text)
