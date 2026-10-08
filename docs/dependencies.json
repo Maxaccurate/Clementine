@@ -106,7 +106,7 @@
     "https://pypi.org/",
     "https://7-zip.org/"
   ],
-  "app_version": "0.1.2",
+  "app_version": "1.0.0",
   "fonts": [
     {
       "name": "Source Han Sans CN Medium",

@@ -8,9 +8,9 @@ A Windows desktop file conversion utility that runs in the system tray. Drag fil
 
 ## Download
 
-Download the [v0.1.2 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v0.1.2/ZestDrop-v0.1.2-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
+Download the [v1.0.0 Windows x64 portable bundle](https://github.com/Maxaccurate/ZestDrop/releases/download/v1.0.0/ZestDrop-v1.0.0-windows-x64.zip), extract the entire ZIP, and run `ZestDrop.exe` from the extracted `ZestDrop` folder. Keep `backend`, `runtime`, and the DLLs alongside the executable. No separate .NET or Python installation is required.
 
-See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v0.1.2) for requirements and known limitations.
+See the [release notes and checksum](https://github.com/Maxaccurate/ZestDrop/releases/tag/v1.0.0) for requirements and known limitations.
 
 ## Screenshots
 
@@ -49,9 +49,11 @@ The interface is available in English and Simplified Chinese. It follows your Wi
 
 Background jobs appear as a stack of progress cards in the corner of the screen, oldest at the top. Each card has **Pause / Resume** (suspends the whole job, including FFmpeg, and continues exactly where it stopped), **Cancel** (stops the job and removes its unfinished files) and **Hide** (the job keeps running; show it again from the tray menu). With two or more jobs a header lets you **Collapse** the cards into one pile, **Expand** them again, or **Hide all**. Two jobs run at once; the rest wait their turn, and a paused job gives up its place.
 
-Outputs are saved alongside the originals. Existing files are preserved, and duplicate output names receive a numeric suffix. Press **Esc** to dismiss the floating menu. Right-click the tray icon to cancel the current task, open the latest output location, or quit. Jobs have no fixed time limit; cancelling removes any partially written output. Logs are kept in `%LOCALAPPDATA%ZestDropogs`.
+Outputs are saved alongside the originals. Existing files are preserved, and duplicate output names receive a numeric suffix. Press **Esc** to dismiss the floating menu. Right-click the tray icon to cancel the current task, open the latest output location, or quit. Jobs have no fixed time limit; cancelling removes any partially written output. Logs are kept in `%LOCALAPPDATA%\ZestDrop\logs`.
 
 Supported categories include images, video, audio, documents, and archives. Tools cover image adjustments, backgrounds, cropping, rotating by any angle and flipping, resizing, watermarks, icon sets, text recognition (OCR) and pixelation; video trimming, speed changes, joining and frame capture; audio loudness, channels and beep redaction; PDF page management; and Office document export. Image and video cropping support custom aspect ratios. Cropping shows a frame on the picture: drag it to move it, drag a corner or an edge to resize it, and the part outside it is dimmed. With a ratio chosen the frame keeps that ratio, and the size shown is exactly the size that is saved. While a tool window works on a preview, a thin line along the top of the preview shows it; quick updates show nothing. Progress indicators show the current stage, elapsed time, and actual processed counts for batch jobs.
+
+When a single picture or video has ten or more tools, related tools share one wheel entry and one window: for example **Crop & rotate**, **Size & compress** or **Sound & subtitles**. Each tool in the window is a tab. Click **Apply this step** to apply one change, then continue with the next one on the result; **Undo last step** takes the newest change back, and **Save new file** writes the result once. If you prefer, the older two-wheel layout (pick a category first, then the tool on a second wheel) can be chosen on the welcome screen or from the tray menu (**Wheel with many tools**).
 
 Every audio and video tool window includes playback controls, a seek bar, time display, volume, and mute. Original files can be played in full. Supported tools also offer processed-effect previews for the current segment; preview length does not limit exported output.
 
@@ -103,7 +105,7 @@ Package a local build with `Compress-Archive -Path ./outputs/ZestDrop -Destinati
 
 Before uploading, run `./outputs/ZestDrop/runtime/python/python.exe packaging/check-package.py`. It opens the built `.msix` as a zip (nothing is installed) and checks the manifest, the logo sizes, that no file path is too long once installed, that no logs, caches or debug files slipped in, and that the license notices are present. A Store install is read-only, so ZestDrop writes nothing next to its own files; its settings and logs go to `%LOCALAPPDATA%\ZestDrop`.
 
-ZestDrop has no main window, so launching it (and launching it again while it runs) opens a short welcome window that explains how to use it and where its tray icon is. It has a language switch and a "Don't show this window when ZestDrop starts" option.
+ZestDrop has no main window, so launching it (and launching it again while it runs) opens a short welcome window that explains how to use it and where its tray icon is. It has a language switch, the choice of wheel layout for files with many tools, and a "Don't show this window when ZestDrop starts" option.
 
 ## Validation
 
