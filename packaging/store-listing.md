@@ -1,4 +1,4 @@
-# Microsoft Store submission — ZestDrop 0.1.1
+# Microsoft Store update: ZestDrop 1.0.0
 
 Copy each field into Partner Center. Limits noted in brackets are the Store's.
 
@@ -17,23 +17,17 @@ Copy each field into Partner Center. Limits noted in brackets are the Store's.
 ## Age ratings
 Answer "No" to every content question (no violence, user communication, purchases, location sharing or personal data collection). Expected result: suitable for all ages.
 
-## Where each part goes in Partner Center
+## How to submit this update in Partner Center
 
-1. **Packages** step: upload `outputs/msix/ZestDrop_0.1.1.0_x64.msix`. Once it is uploaded, Partner Center lists its languages (English, Chinese).
-2. **Store listings** step, on the submission overview page: click a language name (for example "English (United States)"). That opens the listing page for that language. Everything below (description, features, **Screenshots**, store logos) is on that page, and you fill in each language separately. Add Chinese with **Add/remove languages**, or from the packages' languages after upload.
-3. **Screenshots** (inside each language's listing page): PNG, 1366 x 768 or larger (ours are 1920 x 1080), up to 10, 50 MB or less each, optional caption of 200 characters or less. Upload `screenshots/en-1..4.png` to the English listing and `screenshots/zh-1..4.png` to the Chinese one.
-4. **Store logos** on the same page (optional, recommended): 1:1 App tile icon, 300 x 300, use `Assets/Square150x150Logo.scale-200.png`.
-5. **Properties**, **Pricing and availability** and **Age ratings** steps: the answers are in the sections below.
-6. **Submission options** step: paste the certification notes and, if asked, the runFullTrust justification below.
+1. Open **Apps and games**, click ZestDrop, and in the **Product release** section click **Start update**. Partner Center creates a new submission that copies everything from the previous one (properties, pricing, age rating, listings).
+2. **Packages:** upload `outputs/msix/ZestDrop_1.0.0.0_x64.msix`. The version must be higher than the one already in the Store (1.0.0.0 is higher than every earlier ZestDrop package). If the old package is still listed, you may keep it or remove it; the Store gives each PC the highest version that applies. If Partner Center shows a message about this, send it to me.
+3. **Store listings:** open each language (English, Chinese) and update the text and images from [store-listing-fields.md](store-listing-fields.md). The part that changes in an update: fill **What's new in this version**, replace the description and features, and replace the screenshots (the old ones show the previous look). The logos, tiles and hero image from the first submission can stay.
+4. **Properties, Pricing and availability, Age ratings:** nothing changes. The first-submission answers still apply (Utilities & tools, free, all markets, every age-rating question "No"). If Partner Center asks you to re-confirm the age rating, answer "No" to every content question again.
+5. **Submission options:** replace the certification notes with the text at the end of this file.
+6. If the **Restricted capabilities** page appears again, paste the runFullTrust answer below.
+7. Click **Submit for certification** on the overview page.
 
-## Screenshot captions (200 characters or less)
-
-| # | English | 中文 |
-|---|---|---|
-| 1 | Hold Shift while dragging a file and a format wheel opens under your cursor. Release on JPG, PDF, MP3 or any other format. | 拖动文件时按住 Shift，光标下会出现格式轮盘，在 JPG、PDF、MP3 等格式上松手即可转换。 |
-| 2 | Press Ctrl+Shift for tools: compress, trim, crop, change speed, redact and more. | 按 Ctrl+Shift 打开工具：压缩、裁剪时段、裁剪画面、变速、打码等。 |
-| 3 | Tools with settings open their own window, with a live preview and draggable trim handles. | 需要设置的工具会打开独立窗口，带实时预览和可拖动的裁剪手柄。 |
-| 4 | Every job gets a progress card with Pause, Cancel and Hide. Run several at once. | 每个任务都有进度卡片，可暂停、取消或隐藏，可同时运行多个任务。 |
+Screenshots: PNG, 1366 x 768 or larger (ours are 1920 x 1080), up to 10, each 50 MB or less. Upload `screenshots/en-1..4.png` to the English listing and `screenshots/zh-1..4.png` to the Chinese one, in that order, with the captions from `store-listing-fields.md`.
 
 ## Restricted capability: runFullTrust (paste into "Why do you need the runFullTrust capability?")
 
@@ -62,11 +56,19 @@ ZestDrop is a tray utility with no main window. When it starts, a "Welcome to Ze
 How to test:
 1. Select any image, video, audio, PDF or archive file on the desktop or in File Explorer and start dragging it.
 2. While dragging, press Shift: a round format menu opens under the cursor. Release the mouse on a format (e.g. JPG). A progress card appears at the bottom right, and the converted file is saved next to the original.
-3. Drag again and press Ctrl+Shift to open the tools menu (e.g. Compress, Trim). Tools with settings open their own window.
+3. Drag again and press Ctrl+Shift to open the tools menu (e.g. Compress, Resize, Trim & split). Tools with settings open their own window with a preview.
 4. Start a long video conversion to see Pause, Cancel and Hide on the progress card.
 No account, sign-in or internet connection is needed.
 
-runFullTrust: ZestDrop is a classic desktop (WPF) app. It needs full trust to read the files the user drags, write converted files next to them, and run its bundled engines (FFmpeg, 7-Zip, Python) as child processes.
+New in this version, for the tester:
+- Start with Windows is OFF by default. It can be switched on from the tray menu or the welcome window, using the app's startup task (windows.startupTask), and switched off again there or in Windows Settings > Apps > Startup.
+- Watched folders (tray menu) watch only folders the user adds. New files in them are processed locally.
+- Clipboard: the app reads the clipboard only when the user chooses "process clipboard" in the tray menu, and writes to it only when the user clicks "Copy result".
+- Text recognition (OCR) uses the recogniser built into Windows (Windows.Media.Ocr); nothing is downloaded or uploaded.
+- The Explorer right-click menu option is not available in the Store version.
+- Presets, flows and settings are saved in the app's own local data folder.
+
+runFullTrust: ZestDrop is a classic desktop (WPF) app. It needs full trust to read the files the user drags, write converted files next to them, run its bundled engines (FFmpeg, 7-Zip, Python) as child processes, and watch the folders the user adds.
 
 Keyboard: to open its menu during a drag, ZestDrop polls the state of Shift, Ctrl, F8, F9 and Esc with GetAsyncKeyState only. It does not install keyboard hooks, register global hotkeys, or record keystrokes.
 

@@ -4,7 +4,7 @@ Usage: python packaging/make-screenshots.py <renders folder>
 The folder must contain, for each language L in (en, zh):
   wheel-L-holiday.png.png   ZestDrop.exe --debug-wheel-render formats <holiday.png> convert:jpg <out>
   wheel-L-trip.mp4.png      ZestDrop.exe --debug-wheel-render tools <trip.mp4> trimVideo <out>
-  tool-L.png                ZestDrop.exe --debug-tool-render trimVideo <video> <out>
+  tool-L.png                a capture of the combined window: ZestDrop.exe --debug-tool merge:trimSplit <video>, then PrintWindow
   stack-L-expanded.png      ZestDrop.exe --debug-indicator <folder>/stack-L
 (set ZESTDROP_LANG=en or zh when rendering). Output: packaging/screenshots/<lang>-<n>.png
 """
@@ -99,7 +99,8 @@ def wheel_shot(lang, name, tag, color, petal_angle_deg):
 def window_shot(lang):
     canvas = wallpaper()
     tool = Image.open(SRC / f'tool-{lang}.png').convert('RGBA')
-    scale = 1.25
+    # Fit the window (captured at the screen's own DPI, so it can be large) inside the canvas, never enlarging it.
+    scale = min(1.25, (H - 100) / tool.height, (W - 200) / tool.width)
     tool = tool.resize((int(tool.width * scale), int(tool.height * scale)), Image.LANCZOS)
     shadowed(canvas, tool, (W - tool.width) // 2, (H - tool.height) // 2, radius=10)
     return canvas
@@ -128,7 +129,7 @@ def stack_shot(lang):
 for lang in ('en', 'zh'):
     shots = [
         wheel_shot(lang, 'holiday.png', 'PNG', (47, 143, 91), -90),
-        wheel_shot(lang, 'trip.mp4', 'MP4', (109, 79, 209), 15),
+        wheel_shot(lang, 'trip.mp4', 'MP4', (109, 79, 209), 45),  # 'Trim & split' is the fourth of eight entries, 45 degrees clockwise of the right
         window_shot(lang),
         stack_shot(lang),
     ]
