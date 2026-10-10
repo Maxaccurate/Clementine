@@ -101,6 +101,8 @@ EN = {
     '此文件不支持所选工具': 'This file does not support the selected tool',
     '起止时间超出文件范围': 'The start or end is outside the file',
     '未知处理模式': 'Unknown processing mode',
+    # PDF redaction
+    '没有要遮盖的内容：请在页面上框选区域，或填写文档中出现的文字': 'Nothing to redact: mark an area on a page, or type text that appears in the document',
     # location
     '文件里没有位置信息，无需移除': 'This file has no location information to remove',
     '图片文件已损坏': 'The picture file is damaged',

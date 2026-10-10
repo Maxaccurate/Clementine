@@ -1,5 +1,5 @@
 from pathlib import Path
-import io
+import io,json
 from common import *
 
 def open_pdf(path,params):
@@ -63,4 +63,41 @@ def watermark(path,params):
     with output_file(path,'watermark','.pdf') as state: doc.save(state['temp'],garbage=3,deflate=True)
     doc.close(); return state['output']
 
-ACTIONS={'pdfPassword':password,'pdfNumbers':numbers,'extractPdfImages':extract_images,'watermark':watermark}
+def redaction_marks(page,params):
+    """Marks what to black out on one page: the boxes drawn on it (in the coordinates of the page as shown) and
+    every place the given text appears. Returns how many were marked."""
+    import pymupdf as fitz
+    count=0
+    for r in json.loads(params.get('regions','') or '[]'):
+        if int(r.get('page',1))!=page.number+1: continue
+        x,y,w,h=(float(r[k]) for k in ('x','y','width','height'))
+        if w<=0 or h<=0: continue
+        page.add_redact_annot((fitz.Rect(x,y,x+w,y+h)*page.derotation_matrix).normalize(),fill=(0,0,0)); count+=1
+    text=params.get('findText','').strip()
+    if text:
+        for hit in page.search_for(text): page.add_redact_annot(hit,fill=(0,0,0)); count+=1
+    return count
+
+def redact(path,params):
+    """Removes the marked text, pictures and drawings from the PDF (not just covers them) and puts black boxes there."""
+    import pymupdf as fitz
+    doc=open_pdf(path,params); total=0
+    for page in doc:
+        if redaction_marks(page,params):
+            total+=1; page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_PIXELS)
+    if not total: raise ValueError(T('没有要遮盖的内容：请在页面上框选区域，或填写文档中出现的文字'))
+    with output_file(path,'redactPDF','.pdf') as state: doc.save(state['temp'],garbage=4,deflate=True,clean=True)
+    doc.close(); return state['output']
+
+def redaction_preview(path,params,folder):
+    """One page as it is now and as it will look, plus its size in points (as shown) for placing boxes."""
+    import pymupdf as fitz
+    doc=open_pdf(path,params); index=max(0,min(len(doc)-1,int(number(params,'pageNumber',1))-1)); page=doc[index]; zoom=fitz.Matrix(1.3,1.3)
+    source=Path(folder)/'source-page.png'; target=Path(folder)/'live-preview.png'
+    page.get_pixmap(matrix=zoom).save(source)
+    if redaction_marks(page,params): page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_PIXELS)
+    page.get_pixmap(matrix=zoom).save(target)
+    result={'Preview':str(target),'SourcePreview':str(source),'PageWidth':page.rect.width,'PageHeight':page.rect.height,'Page':index+1,'Pages':len(doc)}
+    doc.close(); return result
+
+ACTIONS={'redactPDF':redact,'pdfPassword':password,'pdfNumbers':numbers,'extractPdfImages':extract_images,'watermark':watermark}

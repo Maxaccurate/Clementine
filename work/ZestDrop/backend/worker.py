@@ -116,6 +116,9 @@ def preview(path,action,params,folder,paths=None):
             regions=[r for r in rects(params,*image.size) if float(r.get('start',0))<=t<=(float(r.get('end',0)) or duration(info))]
             if regions:image=images.redact(image,{**params,'regions':json.dumps(regions)})
         image.thumbnail((1200,900)); image.save(target); return {'Preview':str(target),'SourcePreview':str(raw)}
+    if Path(path).suffix.lower()=='.pdf' and action=='redactPDF':
+        import pdftools
+        return pdftools.redaction_preview(path,params,folder)
     if Path(path).suffix.lower()=='.pdf':
         import pypdfium2 as pdfium
         doc=pdfium.PdfDocument(path,password=params.get('password') or None); page=max(0,min(len(doc)-1,int(number(params,'pageNumber',1))-1)); target=folder/'live-preview.png'

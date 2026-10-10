@@ -23,7 +23,7 @@ internal static class Catalog
             ("声音与字幕", ["muteVideo", "subtitlesAudio"]), ("输出与整理", ["compress", "removeMetadata", "removeLocation", "videoToGif", "packArchive"])],
         ["audio"] = [("剪辑", ["trimAudio", "redactAudio", "joinAudio"]), ("声音", ["normalizeAudio", "audioChannels", "audioEffects"]),
             ("输出与整理", ["compress", "removeMetadata", "audioToVideo", "ringtone", "packArchive"])],
-        ["document"] = [("页面", ["splitPDF", "mergePDF", "organizePDF", "extractPdfImages", "pdfNumbers"]), ("安全与识别", ["pdfPassword", "ocrPDF", "watermark", "removeMetadata"]),
+        ["document"] = [("页面", ["splitPDF", "mergePDF", "organizePDF", "extractPdfImages", "pdfNumbers"]), ("安全与识别", ["pdfPassword", "ocrPDF", "watermark", "redactPDF", "removeMetadata"]),
             ("输出与整理", ["compress", "packArchive"])],
     };
 
@@ -39,6 +39,7 @@ internal static class Catalog
             ("merge:cropRotateVideo", "画面裁剪与旋转", ["cropVideo", "rotateVideo"], true), ("merge:resolutionCompress", "分辨率与压缩", ["videoSettings", "compress"], true),
             ("merge:soundSubtitles", "声音与字幕", ["muteVideo", "subtitlesAudio"], true), ("merge:watermarkRedact", "水印与打码", ["watermark", "redactVideo"], true),
             ("merge:framesGif", "保存帧与 GIF", ["videoSnapshots", "videoToGif"], false)],
+        ["document"] = [("merge:watermarkRedactPdf", "水印与遮盖", ["watermark", "redactPDF"], true)],
     };
 
     // Replaces each tool that belongs to a combined entry by that entry (in the place of its first tool).
@@ -226,7 +227,7 @@ internal static class Catalog
             return render ? modern ? ["officePdf", "removeMetadata"] : ["officePdf"] : modern ? ["removeMetadata"] : [];
         }
         if (ext == "pdf")
-            return count > 1 ? ["compress", "splitPDF", "mergePDF", "watermark", "packArchive"] : ["compress", "removeMetadata", "splitPDF", "organizePDF", "pdfPassword", "pdfNumbers", "extractPdfImages", "watermark", "ocrPDF"];
+            return count > 1 ? ["compress", "splitPDF", "mergePDF", "watermark", "packArchive"] : ["compress", "removeMetadata", "splitPDF", "organizePDF", "pdfPassword", "pdfNumbers", "extractPdfImages", "watermark", "redactPDF", "ocrPDF"];
         if (kind == "file")
             return ["packArchive"];
         return Archives.Contains(ext) ? ["extractArchive"] : [];
@@ -271,6 +272,7 @@ internal static class Catalog
         "createCollage" => new(id, L.T("拼图"), true, [C("layout", L.T("布局"), "grid", "grid", "row", "column", "featured"), N("canvasWidth", L.T("画布宽度"), "1600"), N("canvasHeight", L.T("画布高度"), "1200"), N("columns", L.T("网格列数（0 自动）"), "0"), N("gap", L.T("间距"), "16"), N("radius", L.T("圆角"), "0"), T("background", L.T("背景色"), "#ffffff")], true),
         "muteVideo" => new(id, L.T("移除音频"), true),
         "removeLocation" => new(id, L.T("移除位置信息"), true),
+        "redactPDF" => new(id, L.T("PDF 遮盖"), true, [N("pageNumber", L.T("页码"), "1"), T("findText", L.T("同时遮盖文中出现的这段文字（可选）")), T("password", L.T("PDF 密码（如需要）"), "", "password"), T("regions", L.T("多个区域"), "", "json")]),
         "trimVideo" => new(id, L.T("裁剪时段"), true, Times),
         "cropVideo" => new(id, L.T("裁剪画面"), true, [.. Crop, .. Ratio]),
         "changeVideoSpeed" => new(id, L.T("调整速度"), true, [N("speed", L.T("速度（0.125–8）"), "2")]),

@@ -66,7 +66,7 @@ internal sealed class ToolWindow : Window
     private readonly Border rotatePlate = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     // Cropping is previewed by the frame itself, so the preview is not regenerated while its settings change.
     private bool LivePreview => RefreshFrame && !HasMedia && operation.Id != "cropImage";
-    private bool VisualPreview => operation.Id == "watermark" && Catalog.Category(paths[0]) == "image" || operation.Id is "editImage" or "frameImage" or "cropImage" or "cropVideo" or "redactImage" or "redactVideo" or "organizePDF" or "createCollage";
+    private bool VisualPreview => operation.Id == "watermark" && Catalog.Category(paths[0]) == "image" || operation.Id is "editImage" or "frameImage" or "cropImage" or "cropVideo" or "redactImage" or "redactVideo" or "redactPDF" or "organizePDF" or "createCollage";
     private bool ProcessedPlayback => operation.Id is "normalizeAudio" or "audioChannels" or "audioToVideo" or "redactAudio" or "trimAudio" or "trimVideo" or "cropVideo" or "changeVideoSpeed" or "redactVideo" or "muteVideo";
     private bool HasMedia => Catalog.Category(paths[0]) is "audio" or "video";
     private MediaTransport? transport;
@@ -159,7 +159,8 @@ internal sealed class ToolWindow : Window
         left.Children.Add(new TextBlock { Text = VisualPreview || Rotating ? L.T("效果预览") : L.T("源文件预览"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 12) });
         left.Children.Add(framePicker);
         framePicker.SelectionChanged += async (_, _) => { if (loaded && framePicker.SelectedItem is ComboBoxItem item) { imageFrame = (int)item.Tag; regions.Clear(); regionList.Items.Clear(); await Initialize(); if (LivePreview) SchedulePreview(); } };
-        previewHost.Height = 300;
+        // A whole PDF page needs more room to mark small text accurately.
+        previewHost.Height = operation.Id == "redactPDF" ? 520 : 300;
         previewHost.Background = new SolidColorBrush(Color.FromRgb(244, 245, 247));
         if (Rotating)
         {
@@ -239,10 +240,18 @@ internal sealed class ToolWindow : Window
         }
         if (operation.Id == "cropVideo")
             left.Children.Add(new TextBlock { Text = L.T("只裁剪画面；保留完整时长和原有音轨。"), Foreground = UiTheme.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 4) });
-        if (operation.Id is "cropImage" or "cropVideo" or "redactImage" or "redactVideo")
+        if (operation.Id == "redactPDF")
+        {
+            var pageButtons = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
+            pageButtons.Children.Add(Button(L.T("上一页"), () => { TurnPage(-1); return Task.CompletedTask; }));
+            pageButtons.Children.Add(Button(L.T("下一页"), () => { TurnPage(1); return Task.CompletedTask; }));
+            left.Children.Add(pageButtons);
+        }
+        if (operation.Id is "cropImage" or "cropVideo" or "redactImage" or "redactVideo" or "redactPDF")
         {
             bool cropping = operation.Id is "cropImage" or "cropVideo";
-            left.Children.Add(new TextBlock { Text = cropping ? L.T("拖动裁剪框移动位置，拖动边角或边缘调整大小。") : L.T("在预览上拖动选区，可添加多个打码区域。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) });
+            string help = cropping ? L.T("拖动裁剪框移动位置，拖动边角或边缘调整大小。") : operation.Id == "redactPDF" ? L.T("在页面上拖动框选要遮盖的内容，可添加多个区域。遮盖后，框内的文字和图像会从文件中删除，而不只是被盖住。") : L.T("在预览上拖动选区，可添加多个打码区域。");
+            left.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6) });
             left.Children.Add(Button(cropping ? L.T("重置裁剪") : L.T("清空覆盖区域"), () =>
             {
                 if (cropping)
@@ -259,13 +268,17 @@ internal sealed class ToolWindow : Window
                 status.Text = L.T("覆盖区域已清空。请拖动添加新区域。");
                 return Task.CompletedTask;
             }));
-            if (operation.Id is "redactImage" or "redactVideo")
+            if (operation.Id is "redactImage" or "redactVideo" or "redactPDF")
             {
                 left.Children.Add(regionList);
                 regionList.SelectionChanged += (_, _) =>
                 {
                     if (regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, object> r)
-                    { syncingRegion = true; foreach (string key in new[] { "x", "y", "width", "height", "start", "end", "style", "blockSize" }) if (r.TryGetValue(key, out var value)) Set(key, value.ToString()!); syncingRegion = false; }
+                    {
+                        syncingRegion = true; foreach (string key in new[] { "x", "y", "width", "height", "start", "end", "style", "blockSize" }) if (r.TryGetValue(key, out var value)) Set(key, value.ToString()!); syncingRegion = false;
+                        // A PDF area belongs to a page: selecting it shows that page.
+                        if (r.TryGetValue("page", out var page) && Get("pageNumber") != page.ToString()) Set("pageNumber", page.ToString()!);
+                    }
                 };
                 var regionButtons = new WrapPanel();
                 regionButtons.Children.Add(Button(L.T("移除选中区域"), () => { if (regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, object> r) { regions.Remove(r); regionList.Items.Remove(item); if (regions.Count == 0) { Set("width", "0"); Set("height", "0"); rangeEdited = false; if (originalPreview != null) { SetImage(originalPreview); showingOriginal = true; } } else SchedulePreview(); } return Task.CompletedTask; }));
@@ -584,7 +597,11 @@ internal sealed class ToolWindow : Window
         SetMetadataState();
         SyncTrimRange();
         UpdateCropVisibility();
+        if (operation.Id == "redactPDF")
+            SchedulePreview();
     }
+    private int CurrentPage() => Math.Clamp(int.TryParse(Get("pageNumber", "1"), out int page) ? page : 1, 1, Math.Max(1, pages));
+    private void TurnPage(int by) => Set("pageNumber", Math.Clamp(CurrentPage() + by, 1, Math.Max(1, pages)).ToString());
     private void Set(string name, string value)
     {
         if (!controls.TryGetValue(name, out var control))
@@ -676,6 +693,14 @@ internal sealed class ToolWindow : Window
                     return;
                 if (info.TryGetProperty("SourcePreview", out var source))
                     originalPreview = source.GetString();
+                // A PDF page reports its size in points, which is the unit the drawn areas use.
+                if (info.TryGetProperty("PageWidth", out var pageWidth))
+                {
+                    originalWidth = (int)Math.Round(pageWidth.GetDouble());
+                    originalHeight = (int)Math.Round(info.GetProperty("PageHeight").GetDouble());
+                    pages = info.GetProperty("Pages").GetInt32();
+                    details.Text = L.F("第 {0} 页，共 {1} 页", info.GetProperty("Page").GetInt32(), pages);
+                }
                 var preview = info.GetProperty("Preview").GetString();
                 if (preview != null)
                 { player.Visibility = Visibility.Collapsed; player.Stop(); SetImage(preview); selection.Visibility = Visibility.Collapsed; showingOriginal = false; if (compareButton != null) compareButton.Content = L.T("查看原始"); status.Text = L.T("预览已更新；保存后生成新文件。"); UpdateCropVisibility(); }
@@ -963,7 +988,7 @@ internal sealed class ToolWindow : Window
         bool audio = operation.Id is "redactAudio" or "trimAudio";
         if (!loaded || saving != null)
             return;
-        if (!audio && (operation.Id is not ("redactImage" or "redactVideo") || originalWidth == 0))
+        if (!audio && (operation.Id is not ("redactImage" or "redactVideo" or "redactPDF") || originalWidth == 0))
             return;
         if (HasMedia)
         { if (transport?.EffectSelected == true) { status.Text = L.T("请切换到原文件，再选择画面或音频范围。"); return; } transport?.Pause(); }
@@ -1017,6 +1042,16 @@ internal sealed class ToolWindow : Window
         Set("width", w.ToString());
         Set("height", h.ToString());
         syncingRegion = false;
+        if (operation.Id == "redactPDF")
+        {
+            int page = CurrentPage();
+            var mark = new Dictionary<string, object> { ["page"] = page, ["x"] = x, ["y"] = y, ["width"] = w, ["height"] = h };
+            regions.Add(mark);
+            var row = new ListBoxItem { Content = L.F("第 {0} 页 · 区域 {1}", page, regions.Count), Tag = mark };
+            regionList.Items.Add(row);
+            regionList.SelectedItem = row;
+            status.Text = L.F("已添加 {0} 个覆盖区域。", regions.Count);
+        }
         if (operation.Id is "redactImage" or "redactVideo")
         {
             double start = TimeValue(Get("start", "0")), end = TimeValue(Get("end", "0"));
@@ -1042,7 +1077,7 @@ internal sealed class ToolWindow : Window
             FieldsToCropFrame();
         if (Rotating)
             UpdateRotationPreview();
-        if (regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, object> r)
+        if (operation.Id is "redactImage" or "redactVideo" && regionList.SelectedItem is ListBoxItem item && item.Tag is Dictionary<string, object> r)
         {
             try
             { foreach (string key in new[] { "x", "y", "width", "height", "start", "end", "blockSize" }) if (controls.ContainsKey(key)) r[key] = TimeValue(Get(key, "0")); r["style"] = Get("style", "pixelate"); item.Content = L.F("区域 {0} · {1} × {2} · {3}", regionList.SelectedIndex + 1, r["width"], r["height"], Choice(Get("style"))); }
@@ -1075,6 +1110,8 @@ internal sealed class ToolWindow : Window
         try
         { job = Capture(); }
         catch (Exception ex) { status.Text = ex.Message; status.Foreground = UiTheme.Accent; return; }
+        if (operation.Id == "redactPDF" && regions.Count == 0 && string.IsNullOrWhiteSpace(Get("findText")) && string.IsNullOrWhiteSpace(Get("regions")))
+        { status.Text = L.T("请先在页面上框选要遮盖的区域，或填写要遮盖的文字。"); status.Foreground = UiTheme.Accent; return; }
         if (operation.Id is "rotateImage" or "rotateVideo" && double.TryParse(Get("angle", "0"), NumberStyles.Float, CultureInfo.InvariantCulture, out double chosenAngle) && chosenAngle % 360 == 0 && Get("flip", "none") == "none")
         { status.Text = L.T("请选择旋转角度或翻转方式。"); status.Foreground = UiTheme.Accent; return; }
         saving = CancellationTokenSource.CreateLinkedTokenSource(closing.Token);
