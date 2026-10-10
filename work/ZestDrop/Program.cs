@@ -162,6 +162,14 @@ internal static class Program
             testApp.Run(definition.Parts != null ? new ComboWindow(args.Skip(2).ToArray(), definition, Backend.Execute) : new ToolWindow(args.Skip(2).ToArray(), definition, Backend.Execute));
             return 0;
         }
+        if (args.Length == 2 && args[0] == "--debug-window")
+        {
+            // Opens one of the small windows on its own, for checking its look (both languages and themes).
+            var testApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+            Window window = args[1] switch { "wheel-order" => new WheelOrderWindow(), "watch" => new WatchWindow(() => { }), "flows" => new FlowWindow(() => { }), _ => new WelcomeWindow() };
+            testApp.Run(window);
+            return 0;
+        }
         if (args.Length == 5 && args[0] == "--debug-wheel-render")
         {
             // --debug-wheel-render <formats|tools> <file> <operation id to highlight> <out.png>
@@ -334,6 +342,7 @@ internal sealed class Resident : IDisposable
     private WatchFolders? watch;
     private WatchWindow? watchWindow;
     private FlowWindow? flowWindow;
+    private WheelOrderWindow? orderWindow;
     private readonly EventWaitHandle openRequest = new(false, EventResetMode.AutoReset, ExplorerIntegration.EventName);
 
     private Forms.ToolStripMenuItem? startupMenu;
@@ -506,6 +515,7 @@ internal sealed class Resident : IDisposable
         layoutMenu.DropDownItems.AddRange([mergedLayout, twoWheelLayout]);
         layoutMenu.DropDownOpening += (_, _) => { mergedLayout.Checked = !Catalog.TwoWheels; twoWheelLayout.Checked = Catalog.TwoWheels; };
         items.Items.Add(layoutMenu);
+        items.Items.Add(L.T("自定义轮盘…"), null, (_, _) => { if (orderWindow == null) { orderWindow = new WheelOrderWindow(); orderWindow.Closed += (_, _) => orderWindow = null; orderWindow.Show(); } orderWindow.Activate(); });
         items.Items.Add(L.T("流程…"), null, (_, _) => { if (flowWindow == null) { flowWindow = new FlowWindow(() => { }); flowWindow.Closed += (_, _) => flowWindow = null; flowWindow.Show(); } flowWindow.Activate(); });
         Forms.ToolStripMenuItem? explorerItem = null;
         if (ExplorerIntegration.Available)
@@ -647,6 +657,7 @@ internal sealed class Resident : IDisposable
 
     private void BeginOperation(string[] paths, Operation operation)
     {
+        Catalog.RememberLast(paths, operation);
         if (operation.Parts != null)
         {
             var combined = new ComboWindow(paths, operation, EnqueueTool);

@@ -22,7 +22,7 @@ internal static class OpenMenu
 
     private static MenuItem Item(string[] paths, Operation option, Action<string[], Operation> submit)
     {
-        var item = new MenuItem { Header = option.Label };
+        var item = new MenuItem { Header = (option.Recent ? "↻ " : "") + option.Label };
         item.Click += (_, _) => submit(paths, option);
         return item;
     }

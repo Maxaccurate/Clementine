@@ -7,7 +7,8 @@ namespace ZestDrop;
 
 internal sealed record Field(string Name, string Label, string Default = "", string Kind = "text", string[]? Choices = null);
 // Parts: the tools a combined entry opens together. Chain: each part works on the previous parts' result.
-internal sealed record Operation(string Id, string Label, bool Tool = false, Field[]? Fields = null, bool Ordered = false, string[]? Parts = null, bool Chain = false);
+// Recent: the option used last for this kind of file, shown first in the wheel with a ↻ mark.
+internal sealed record Operation(string Id, string Label, bool Tool = false, Field[]? Fields = null, bool Ordered = false, string[]? Parts = null, bool Chain = false, bool Recent = false);
 
 internal sealed record ToolGroup(string Label, List<Operation> Items);
 
@@ -115,6 +116,68 @@ internal static class Catalog
     {
         if (paths.Length == 0 || paths.Any(p => !File.Exists(p) && !Directory.Exists(p)))
             return [];
+        return Arrange(Build(paths, tools), Category(paths[0]), tools, true);
+    }
+
+    // --- the order of the wheel: the user's own order, and the option used last at the top --------------------
+    public const string LastFirstKey = "wheelLastFirst";
+    public static bool LastFirst => Settings.GetBool(LastFirstKey, true);
+    private static string Mode(bool tools) => tools ? "tools" : "formats";
+    public static bool IsToolId(string id) => !id.StartsWith("convert:") && !id.StartsWith("pack:");
+
+    public static List<string> SavedOrder(string kind, bool tools)
+    {
+        try
+        { return System.Text.Json.JsonSerializer.Deserialize<List<string>>(Settings.GetString($"wheelOrder:{kind}:{Mode(tools)}") ?? "[]") ?? []; }
+        catch (System.Text.Json.JsonException) { return []; }
+    }
+
+    public static void SaveOrder(string kind, bool tools, List<string>? ids) =>
+        Settings.Set($"wheelOrder:{kind}:{Mode(tools)}", ids == null ? "" : System.Text.Json.JsonSerializer.Serialize(ids));
+
+    public static void RememberLast(string[] paths, Operation operation)
+    {
+        if (paths.Length > 0 && operation.Id != Flows.MenuId)
+            Settings.Set($"wheelLast:{Category(paths[0])}:{Mode(IsToolId(operation.Id))}", operation.Id);
+    }
+
+    private static List<Operation> Arrange(List<Operation> list, string kind, bool tools, bool markRecent)
+    {
+        var order = SavedOrder(kind, tools);
+        var result = list.Select((operation, index) => (operation, index))
+            .OrderBy(x => order.IndexOf(x.operation.Id) is int at and >= 0 ? at : int.MaxValue).ThenBy(x => x.index)
+            .Select(x => x.operation).ToList();
+        if (markRecent && LastFirst && Settings.GetString($"wheelLast:{kind}:{Mode(tools)}") is { Length: > 0 } last)
+        {
+            // A tool used on its own may now be part of a combined entry; that entry moves up instead.
+            int at = result.FindIndex(o => o.Id == last);
+            if (at < 0)
+                at = result.FindIndex(o => o.Parts?.Contains(last) == true);
+            if (at >= 0)
+            {
+                var recent = result[at] with { Recent = true };
+                result.RemoveAt(at);
+                result.Insert(0, recent);
+            }
+        }
+        return result;
+    }
+
+    // What the wheel offers for a kind of file, in its current order, for arranging it (one file and several files together).
+    public static List<Operation> Sample(string kind, bool tools)
+    {
+        string[] extensions = kind switch { "image" => Images, "video" => Video, "audio" => Audio, "document" => ["pdf", "txt", "srt", "vtt"], _ => Archives };
+        var all = new List<Operation>();
+        foreach (string extension in tools ? extensions.Take(1) : extensions)
+            foreach (var paths in new[] { new[] { "x." + extension }, new[] { "x." + extension, "y." + extension } })
+                foreach (var operation in Build(paths, tools))
+                    if (!all.Any(o => o.Id == operation.Id))
+                        all.Add(operation);
+        return Arrange(all, kind, tools, false);
+    }
+
+    private static List<Operation> Build(string[] paths, bool tools)
+    {
         if (tools)
         {
             var ids = Tools(paths[0], paths.Length).ToList();

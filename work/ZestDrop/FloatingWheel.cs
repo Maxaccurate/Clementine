@@ -341,7 +341,7 @@ internal sealed class DropWheel : Window
             double angle = -Math.PI / 2 + i * 2 * Math.PI / actions.Count, half = Math.PI / actions.Count;
             double labelWidth = Math.Clamp(2 * 119 * Math.Sin(half) - 16, 72, groups != null ? 92 : 112);
             string? preview = groups != null ? Preview(groups[i]) : null;
-            AddPetal(first, angle - half + .016, angle + half - .016, Inner, Outer, 119, labelWidth, actions[i].Label, preview, groups != null ? 13 : actions.Count > 7 ? 12 : 14, RestingFace, 1);
+            AddPetal(first, angle - half + .016, angle + half - .016, Inner, Outer, 119, labelWidth, (actions[i].Recent ? "↻ " : "") + actions[i].Label, preview, groups != null ? 13 : actions.Count > 7 ? 12 : 14, RestingFace, 1);
         }
         UpdateLayout();
     }
