@@ -18,9 +18,9 @@ internal static class Catalog
     private static readonly Dictionary<string, (string Label, string[] Ids)[]> Categories = new()
     {
         ["image"] = [("尺寸与方向", ["cropImage", "rotateImage", "resizeImage"]), ("外观与标记", ["editImage", "frameImage", "watermark", "redactImage"]),
-            ("输出与整理", ["compress", "removeMetadata", "removeLocation", "ocrImage", "makeIcon", "createPDF", "createCollage", "createAnimation", "packArchive"])],
+            ("输出与整理", ["compress", "removeMetadata", "location", "ocrImage", "makeIcon", "createPDF", "createCollage", "createAnimation", "packArchive"])],
         ["video"] = [("剪辑", ["trimVideo", "splitVideo", "joinVideos", "changeVideoSpeed", "videoSnapshots", "videoEffects"]), ("画面", ["cropVideo", "rotateVideo", "videoSettings", "watermark", "redactVideo"]),
-            ("声音与字幕", ["muteVideo", "subtitlesAudio"]), ("输出与整理", ["compress", "removeMetadata", "removeLocation", "videoToGif", "packArchive"])],
+            ("声音与字幕", ["muteVideo", "subtitlesAudio"]), ("输出与整理", ["compress", "removeMetadata", "location", "videoToGif", "packArchive"])],
         ["audio"] = [("剪辑", ["trimAudio", "redactAudio", "joinAudio"]), ("声音", ["normalizeAudio", "audioChannels", "audioEffects"]),
             ("输出与整理", ["compress", "removeMetadata", "audioToVideo", "ringtone", "packArchive"])],
         ["document"] = [("页面", ["splitPDF", "mergePDF", "organizePDF", "extractPdfImages", "pdfNumbers"]), ("安全与识别", ["pdfPassword", "ocrPDF", "watermark", "redactPDF", "removeMetadata"]),
@@ -212,12 +212,12 @@ internal static class Catalog
                 return count > 1 ? ["createPDF", "createCollage", "createAnimation", "packArchive"] : ["resizeImage", "makeIcon"];
             if (ext == "bmp")
                 return count > 1 ? ["compress", "rotateImage", "resizeImage", "watermark", "createPDF", "createCollage", "createAnimation", "packArchive"] : ["compress", "editImage", "frameImage", "cropImage", "rotateImage", "resizeImage", "watermark", "makeIcon", "ocrImage", "redactImage"];
-            return count > 1 ? ["compress", "removeMetadata", "removeLocation", "rotateImage", "resizeImage", "watermark", "createPDF", "createCollage", "createAnimation", "packArchive"] : ["compress", "removeMetadata", "removeLocation", "editImage", "frameImage", "cropImage", "rotateImage", "resizeImage", "watermark", "makeIcon", "ocrImage", "redactImage"];
+            return count > 1 ? ["compress", "removeMetadata", "location", "rotateImage", "resizeImage", "watermark", "createPDF", "createCollage", "createAnimation", "packArchive"] : ["compress", "removeMetadata", "location", "editImage", "frameImage", "cropImage", "rotateImage", "resizeImage", "watermark", "makeIcon", "ocrImage", "redactImage"];
         }
         if (kind == "audio")
             return count > 1 ? ["compress", "normalizeAudio", "audioEffects", "joinAudio", "packArchive"] : ["compress", "removeMetadata", "normalizeAudio", "audioToVideo", "trimAudio", "audioChannels", "audioEffects", "ringtone", "redactAudio"];
         if (kind == "video")
-            return ext == "gif" ? ["removeMetadata"] : count > 1 ? ["compress", "removeLocation", "muteVideo", "rotateVideo", "videoSettings", "watermark", "joinVideos", "packArchive"] : ["compress", "removeMetadata", "removeLocation", "muteVideo", "trimVideo", "cropVideo", "rotateVideo", "changeVideoSpeed", "videoSnapshots", "splitVideo", "videoSettings", "videoEffects", "videoToGif", "watermark", "subtitlesAudio", "redactVideo"];
+            return ext == "gif" ? ["removeMetadata"] : count > 1 ? ["compress", "location", "muteVideo", "rotateVideo", "videoSettings", "watermark", "joinVideos", "packArchive"] : ["compress", "removeMetadata", "location", "muteVideo", "trimVideo", "cropVideo", "rotateVideo", "changeVideoSpeed", "videoSnapshots", "splitVideo", "videoSettings", "videoEffects", "videoToGif", "watermark", "subtitlesAudio", "redactVideo"];
         if (kind == "office")
         {
             string family = OfficeSlides.Contains(ext) ? "PowerPoint" : OfficeWords.Contains(ext) ? "Word" : "Excel";
@@ -271,7 +271,7 @@ internal static class Catalog
         "createPDF" => new(id, L.T("创建 PDF"), true, [], true),
         "createCollage" => new(id, L.T("拼图"), true, [C("layout", L.T("布局"), "grid", "grid", "row", "column", "featured"), N("canvasWidth", L.T("画布宽度"), "1600"), N("canvasHeight", L.T("画布高度"), "1200"), N("columns", L.T("网格列数（0 自动）"), "0"), N("gap", L.T("间距"), "16"), N("radius", L.T("圆角"), "0"), T("background", L.T("背景色"), "#ffffff")], true),
         "muteVideo" => new(id, L.T("移除音频"), true),
-        "removeLocation" => new(id, L.T("移除位置信息"), true),
+        "location" => new(id, L.T("位置信息"), true, [C("mode", L.T("操作"), "strip", "strip", "set"), T("coordinates", L.T("新位置（纬度, 经度）")), T("locationSource", L.T("或使用另一张照片的位置"), "", "file:image")]),
         "redactPDF" => new(id, L.T("PDF 遮盖"), true, [N("pageNumber", L.T("页码"), "1"), T("findText", L.T("同时遮盖文中出现的这段文字（可选）")), T("password", L.T("PDF 密码（如需要）"), "", "password"), T("regions", L.T("多个区域"), "", "json")]),
         "trimVideo" => new(id, L.T("裁剪时段"), true, Times),
         "cropVideo" => new(id, L.T("裁剪画面"), true, [.. Crop, .. Ratio]),

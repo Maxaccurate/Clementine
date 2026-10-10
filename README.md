@@ -55,7 +55,7 @@ Supported categories include images, video, audio, documents, and archives. Tool
 
 When a single picture or video has ten or more tools, related tools share one wheel entry and one window: for example **Crop & rotate**, **Size & compress** or **Sound & subtitles**. Each tool in the window is a tab. Click **Apply this step** to apply one change, then continue with the next one on the result; **Undo last step** takes the newest change back, and **Save new file** writes the result once. If you prefer, the older two-wheel layout (pick a category first, then the tool on a second wheel) can be chosen on the welcome screen or from the tray menu (**Wheel with many tools**).
 
-**Remove location** strips only where a photo or video was taken (GPS in EXIF and XMP, video location tags) and keeps everything else; JPEGs are not re-encoded. **Redact PDF** blacks out areas you mark on a page and any text you type, and removes the content underneath from the file rather than just covering it.
+**Location** shows where a photo or video says it was taken, and either removes that location or sets a new one: paste coordinates from a map app (for example `31.2304, 121.4737`) or copy the location of another photo. Everything else is kept, and JPEGs are not re-encoded. **Redact PDF** blacks out areas you mark on a page and any text you type, and removes the content underneath from the file rather than just covering it.
 
 **Customize wheel…** in the tray menu arranges the options for each kind of file; the first sits at the top of the wheel, and the option you used last moves to the top with a ↻ mark (this can be switched off). **Appearance** in the tray menu chooses Match Windows, Light or Dark.
 

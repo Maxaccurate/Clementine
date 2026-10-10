@@ -85,7 +85,7 @@ def output_stem(path,suffix):
 
 # Output names say what was done in plain words (photo-rotated.jpg) instead of using the tool's internal id.
 SUFFIX={'rotateImage':'rotated','rotateVideo':'rotated','cropImage':'cropped','cropVideo':'cropped','compress':'compressed','editImage':'edited',
-    'frameImage':'framed','redactImage':'redacted','redactVideo':'redacted','redactAudio':'beeped','removeMetadata':'clean','removeLocation':'no-location','redactPDF':'redacted','muteVideo':'muted',
+    'frameImage':'framed','redactImage':'redacted','redactVideo':'redacted','redactAudio':'beeped','removeMetadata':'clean','redactPDF':'redacted','muteVideo':'muted',
     'trimVideo':'trimmed','trimAudio':'trimmed','changeVideoSpeed':'speed','normalizeAudio':'normalized','audioChannels':'channels','audioToVideo':'visualizer',
     'resizeImage':'resized','watermark':'watermarked','makeIcon':'icons','ocrImage':'text','ocrPDF':'text','videoToGif':'gif','videoSettings':'resized',
     'videoEffects':'effects','subtitlesAudio':'mixed','audioEffects':'adjusted','ringtone':'ringtone','pdfPassword':'protected','pdfNumbers':'numbered',

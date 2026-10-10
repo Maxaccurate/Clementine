@@ -17,9 +17,9 @@ def one(path,action,params):
         return archives.convert([path],fmt,params)
     if action=='flow': return run_flow(path,params)
     if action=='extractArchive': return archives.extract(path,params)
-    if action=='removeLocation':
+    if action=='location':
         import location
-        return location.remove(path,params)
+        return location.run(path,params)
     if action in ('ocrImage','ocrPDF'):
         import ocr
         return ocr.run(path,action,params)
@@ -75,12 +75,19 @@ def execute(job,result_path):
     Path(result_path).write_text(json.dumps({'Files':files},ensure_ascii=False),encoding='utf8')
     progress('completed',len(files),Path(paths[-1]).name)
 
+def location_text(read):
+    """Where the file says it was taken, as "lat, lon", for the location tool; None if it has no location."""
+    import location
+    try: return location.describe(read())
+    except Exception: return None
+
 def inspect(path,folder,frame=None):
+    import location
     folder=Path(folder); folder.mkdir(parents=True,exist_ok=True); kind=category(path); result={'Kind':kind,'Preview':None,'Width':0,'Height':0,'Duration':0,'FrameRate':0,'Metadata':{},'Pages':0}
     if kind=='image':
-        image=open_image(path,frame); result.update(Width=image.width,Height=image.height,Frames=image.info.get('source_frames',1),Frame=image.info.get('source_frame',0),Metadata=images.metadata(path)); image.thumbnail((1000,800)); preview=folder/'preview.png'; image.save(preview); result['Preview']=str(preview)
+        image=open_image(path,frame); result.update(Width=image.width,Height=image.height,Frames=image.info.get('source_frames',1),Frame=image.info.get('source_frame',0),Metadata=images.metadata(path),Location=location_text(lambda:location.from_gps(image.getexif().get_ifd(location.GPS)))); image.thumbnail((1000,800)); preview=folder/'preview.png'; image.save(preview); result['Preview']=str(preview)
     elif kind in ('audio','video'):
-        info=probe(path); result['Duration']=duration(info)
+        info=probe(path); result['Duration']=duration(info); result['Location']=location_text(lambda:location.from_tags(info))
         result['Metadata']={'format':info.get('format',{}).get('tags',{}),'streams':{str(s['index']):s.get('tags',{}) for s in info['streams']},'chapters':{str(i):s.get('tags',{}) for i,s in enumerate(info.get('chapters',[]))}}
         if kind=='video':
             stream=video_stream(info); result.update(Width=int(stream['width']),Height=int(stream['height'])); a,b=map(float,stream.get('avg_frame_rate','30/1').split('/')); result['FrameRate']=a/b if b and a else 30

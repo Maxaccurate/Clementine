@@ -393,6 +393,20 @@ internal sealed class ToolWindow : Window
             WhenChanged("mode", () => ShowField("newPassword", Get("mode", "add") == "add"));
         if (operation.Id == "createAnimation")
             WhenChanged("format", () => ShowField("loop", Get("format", "gif") == "gif"));
+        if (operation.Id == "location")
+        {
+            // ZestDrop never goes online, so there is no map here: coordinates are pasted from a map app, or taken from another photo.
+            var note = new TextBlock { Text = L.T("在地图应用中右键一个地点即可复制坐标，例如 31.2304, 121.4737。也可以选一张在那里拍的照片。"), Foreground = UiTheme.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
+            parameters.Children.Add(note);
+            WhenChanged("mode", () =>
+            {
+                bool set = Get("mode", "strip") == "set";
+                ShowField("coordinates", set); ShowField("locationSource", set);
+                note.Visibility = set ? Visibility.Visible : Visibility.Collapsed;
+                foreach (var pick in parameters.Children.OfType<Button>().Where(b => (string)b.Content == L.T("选择图片…")))
+                    pick.Visibility = note.Visibility;
+            });
+        }
         if (operation.Id == "compress" && controls.ContainsKey("targetKB"))
         {
             // Common upload limits; a click fills the size target in.
@@ -519,7 +533,7 @@ internal sealed class ToolWindow : Window
         root.Children.Add(bottom);
         return root;
     }
-    private static string Choice(string value) => value switch { "crop" => L.T("自动裁剪，去除空白边角"), "expand" => L.T("放大画布，保留整张画面"), "keep" => L.T("保持原尺寸（允许空白角）"), "none" => L.T("不翻转"), "horizontal" => L.T("左右翻转"), "vertical" => L.T("上下翻转"), "percent" => L.T("按比例"), "edge" => L.T("按最长边"), "size" => L.T("指定宽高"), "single" => L.T("单个"), "tiled" => L.T("平铺"), "original" => L.T("保持原样"), "add" => L.T("添加密码"), "remove" => L.T("移除密码"), "bottomRight" => L.T("右下"), "bottomCenter" => L.T("下中"), "bottomLeft" => L.T("左下"), "middleRight" => L.T("右中"), "center" => L.T("正中"), "middleLeft" => L.T("左中"), "topRight" => L.T("右上"), "topCenter" => L.T("上中"), "topLeft" => L.T("左上"), "solid" => L.T("纯色遮盖"), "blur" => L.T("模糊"), "pixelate" => L.T("马赛克"), "free" => L.T("自由"), "custom" => L.T("自定义"), "grid" => L.T("网格"), "row" => L.T("一行"), "column" => L.T("一列"), "featured" => L.T("主图布局"), "landscape" => L.T("横向"), "portrait" => L.T("纵向"), "square" => L.T("正方形"), "mono" => L.T("单声道"), "stereo" => L.T("双声道"), _ => value };
+    private static string Choice(string value) => value switch { "crop" => L.T("自动裁剪，去除空白边角"), "expand" => L.T("放大画布，保留整张画面"), "keep" => L.T("保持原尺寸（允许空白角）"), "none" => L.T("不翻转"), "horizontal" => L.T("左右翻转"), "vertical" => L.T("上下翻转"), "percent" => L.T("按比例"), "edge" => L.T("按最长边"), "size" => L.T("指定宽高"), "single" => L.T("单个"), "tiled" => L.T("平铺"), "original" => L.T("保持原样"), "add" => L.T("添加密码"), "remove" => L.T("移除密码"), "strip" => L.T("移除位置信息"), "set" => L.T("改为新的位置"), "bottomRight" => L.T("右下"), "bottomCenter" => L.T("下中"), "bottomLeft" => L.T("左下"), "middleRight" => L.T("右中"), "center" => L.T("正中"), "middleLeft" => L.T("左中"), "topRight" => L.T("右上"), "topCenter" => L.T("上中"), "topLeft" => L.T("左上"), "solid" => L.T("纯色遮盖"), "blur" => L.T("模糊"), "pixelate" => L.T("马赛克"), "free" => L.T("自由"), "custom" => L.T("自定义"), "grid" => L.T("网格"), "row" => L.T("一行"), "column" => L.T("一列"), "featured" => L.T("主图布局"), "landscape" => L.T("横向"), "portrait" => L.T("纵向"), "square" => L.T("正方形"), "mono" => L.T("单声道"), "stereo" => L.T("双声道"), _ => value };
     private static Button Button(string text, Func<Task> click)
     {
         var button = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 0, 6, 5) };
@@ -577,6 +591,11 @@ internal sealed class ToolWindow : Window
                 table.Populate(info.GetProperty("Metadata"));
             if (operation.Id == "removeMetadata")
                 details.Text = L.T("可搜索字段；关闭“移除全部”后可编辑元数据。");
+            if (operation.Id == "location")
+            {
+                string? place = info.TryGetProperty("Location", out var where) && where.ValueKind == JsonValueKind.String ? where.GetString() : null;
+                details.Text = (paths.Length > 1 ? L.T("第一个文件：") : "") + (place == null ? L.T("没有位置信息。") : L.F("当前位置：{0}", place));
+            }
             if (operation.Id == "organizePDF")
             {
                 for (int i = 1; i <= pages; i++)
@@ -1110,6 +1129,8 @@ internal sealed class ToolWindow : Window
         try
         { job = Capture(); }
         catch (Exception ex) { status.Text = ex.Message; status.Foreground = UiTheme.Accent; return; }
+        if (operation.Id == "location" && Get("mode") == "set" && string.IsNullOrWhiteSpace(Get("coordinates")) && string.IsNullOrWhiteSpace(Get("locationSource")))
+        { status.Text = L.T("请填写新位置的坐标，或选一张照片借用它的位置。"); status.Foreground = UiTheme.Accent; return; }
         if (operation.Id == "redactPDF" && regions.Count == 0 && string.IsNullOrWhiteSpace(Get("findText")) && string.IsNullOrWhiteSpace(Get("regions")))
         { status.Text = L.T("请先在页面上框选要遮盖的区域，或填写要遮盖的文字。"); status.Foreground = UiTheme.Accent; return; }
         if (operation.Id is "rotateImage" or "rotateVideo" && double.TryParse(Get("angle", "0"), NumberStyles.Float, CultureInfo.InvariantCulture, out double chosenAngle) && chosenAngle % 360 == 0 && Get("flip", "none") == "none")

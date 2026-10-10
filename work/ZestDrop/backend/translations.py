@@ -104,6 +104,9 @@ EN = {
     # PDF redaction
     '没有要遮盖的内容：请在页面上框选区域，或填写文档中出现的文字': 'Nothing to redact: mark an area on a page, or type text that appears in the document',
     # location
+    '请按“纬度, 经度”填写坐标，例如 31.2304, 121.4737': 'Type the coordinates as "latitude, longitude", for example 31.2304, 121.4737',
+    '纬度需在 -90 到 90 之间，经度需在 -180 到 180 之间': 'Latitude must be between -90 and 90, and longitude between -180 and 180',
+    '所选文件里没有位置信息，无法借用': 'The chosen file has no location to copy',
     '文件里没有位置信息，无需移除': 'This file has no location information to remove',
     '图片文件已损坏': 'The picture file is damaged',
     '图片的元数据过大，无法处理': "The picture's metadata is too large to process",
