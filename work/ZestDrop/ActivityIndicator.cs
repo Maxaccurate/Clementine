@@ -16,7 +16,7 @@ internal sealed class ActivityIndicator : StackPanel
     private readonly TextBlock heading = new() { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = UiTheme.Ink };
     private readonly TextBlock description = new() { FontSize = 12, Foreground = UiTheme.Muted, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 6, 0, 0) };
     private readonly TextBlock timing = new() { FontSize = 11, Foreground = UiTheme.Muted, Margin = new Thickness(0, 7, 0, 0) };
-    private readonly Grid track = new() { Height = 3, ClipToBounds = true, Background = new SolidColorBrush(Color.FromRgb(242, 233, 228)), Margin = new Thickness(0, 12, 0, 0) };
+    private readonly Grid track = new() { Height = 3, ClipToBounds = true, Background = UiTheme.Tint, Margin = new Thickness(0, 12, 0, 0) };
     private readonly Border fill = new() { Height = 3, Background = UiTheme.Accent, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TranslateTransform movement = new();
     private Stopwatch elapsed = new();

@@ -22,7 +22,7 @@ internal static class OpenMenu
 
     private static MenuItem Item(string[] paths, Operation option, Action<string[], Operation> submit)
     {
-        var item = new MenuItem { Header = (option.Recent ? "↻ " : "") + option.Label };
+        var item = new MenuItem { Header = (option.Recent ? "↻ " : "") + option.Label, Foreground = UiTheme.Ink };
         item.Click += (_, _) => submit(paths, option);
         return item;
     }
@@ -48,6 +48,12 @@ internal static class OpenMenu
 
     private static void Open(ContextMenu menu)
     {
+        UiTheme.Refresh();
+        menu.Background = UiTheme.Surface;
+        menu.Foreground = UiTheme.Ink;
+        menu.BorderBrush = UiTheme.Line;
+        foreach (var item in menu.Items.OfType<MenuItem>())
+        { item.Foreground = UiTheme.Ink; foreach (var sub in item.Items.OfType<MenuItem>()) sub.Foreground = UiTheme.Ink; }
         // The menu needs an active window to close properly when the user clicks elsewhere, so a one-pixel invisible one holds it.
         var anchor = new Window { Width = 1, Height = 1, WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent, ShowInTaskbar = false, Topmost = true };
         anchor.Show();

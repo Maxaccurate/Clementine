@@ -515,6 +515,11 @@ internal sealed class Resident : IDisposable
         layoutMenu.DropDownItems.AddRange([mergedLayout, twoWheelLayout]);
         layoutMenu.DropDownOpening += (_, _) => { mergedLayout.Checked = !Catalog.TwoWheels; twoWheelLayout.Checked = Catalog.TwoWheels; };
         items.Items.Add(layoutMenu);
+        var themeMenu = new Forms.ToolStripMenuItem(L.T("外观"));
+        foreach (var (choice, label) in new[] { ("system", L.T("跟随系统")), ("light", L.T("浅色")), ("dark", L.T("深色")) })
+            themeMenu.DropDownItems.Add(new Forms.ToolStripMenuItem(label, null, (_, _) => { UiTheme.Choose(choice); taskIndicator.ApplyTheme(); }) { Tag = choice });
+        themeMenu.DropDownOpening += (_, _) => { foreach (Forms.ToolStripMenuItem item in themeMenu.DropDownItems) item.Checked = (string)item.Tag! == UiTheme.Choice; };
+        items.Items.Add(themeMenu);
         items.Items.Add(L.T("自定义轮盘…"), null, (_, _) => { if (orderWindow == null) { orderWindow = new WheelOrderWindow(); orderWindow.Closed += (_, _) => orderWindow = null; orderWindow.Show(); } orderWindow.Activate(); });
         items.Items.Add(L.T("流程…"), null, (_, _) => { if (flowWindow == null) { flowWindow = new FlowWindow(() => { }); flowWindow.Closed += (_, _) => flowWindow = null; flowWindow.Show(); } flowWindow.Activate(); });
         Forms.ToolStripMenuItem? explorerItem = null;

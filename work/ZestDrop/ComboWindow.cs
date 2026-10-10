@@ -47,7 +47,7 @@ internal sealed class ComboWindow : Window
         MinWidth = 850;
         MinHeight = 680;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = new SolidColorBrush(Color.FromRgb(248, 249, 251));
+        Background = UiTheme.WindowBack;
         FontFamily = UiTheme.Font;
         FontSize = 13;
         UiTheme.Apply(this);

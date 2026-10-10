@@ -13,8 +13,6 @@ internal sealed class RotationDial : Slider
     internal const double PixelsPerDegree = 5;
     private double lastX, dragAngle;
     private bool dragging;
-    private static readonly Brush Face = new SolidColorBrush(Color.FromRgb(250, 251, 252));
-    private static readonly Pen Outline = new(new SolidColorBrush(Color.FromRgb(230, 233, 238)), 1);
     private static readonly Pen Tick = new(new SolidColorBrush(Color.FromRgb(182, 190, 201)), 1);
     private static readonly Pen MajorTick = new(new SolidColorBrush(Color.FromRgb(115, 126, 142)), 1.3);
     internal static string Caption => L.English ? "Rotation angle" : "旋转角度";
@@ -49,7 +47,7 @@ internal sealed class RotationDial : Slider
         base.OnRender(dc);
         double width = ActualWidth, centre = width / 2;
         if (width < 2) return;
-        dc.DrawRoundedRectangle(Face, IsKeyboardFocusWithin ? new Pen(UiTheme.Accent, 1) : Outline,
+        dc.DrawRoundedRectangle(UiTheme.Surface, new Pen(IsKeyboardFocusWithin ? UiTheme.Accent : UiTheme.Line, 1),
             new Rect(.5, .5, width - 1, ActualHeight - 1), 9, 9);
         dc.PushClip(new RectangleGeometry(new Rect(1, 1, width - 2, ActualHeight - 2), 8, 8));
         var typeface = new Typeface(UiTheme.Font, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
@@ -68,8 +66,9 @@ internal sealed class RotationDial : Slider
                     dc.DrawText(label, new Point(x - label.Width / 2, 52));
             }
         }
-        var leftFade = new LinearGradientBrush(Color.FromRgb(250, 251, 252), Color.FromArgb(0, 250, 251, 252), 0);
-        var rightFade = new LinearGradientBrush(Color.FromArgb(0, 250, 251, 252), Color.FromRgb(250, 251, 252), 0);
+        Color face = UiTheme.SurfaceColor, clear = Color.FromArgb(0, face.R, face.G, face.B);
+        var leftFade = new LinearGradientBrush(face, clear, 0);
+        var rightFade = new LinearGradientBrush(clear, face, 0);
         dc.DrawRectangle(leftFade, null, new Rect(0, 1, 32, ActualHeight - 2));
         dc.DrawRectangle(rightFade, null, new Rect(Math.Max(0, width - 32), 1, 32, ActualHeight - 2));
         dc.DrawRoundedRectangle(UiTheme.Accent, null, new Rect(centre - 1, 12, 2, 31), 1, 1);

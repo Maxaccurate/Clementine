@@ -27,9 +27,8 @@ internal sealed class FlowWindow : Window
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
-        FontFamily = UiTheme.Font;
-        Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 249, 251));
-        var stack = new StackPanel { Margin = new Thickness(20) };
+        UiTheme.Apply(this);
+        var stack = new StackPanel { Margin = new Thickness(28, 4, 28, 24) };
         stack.Children.Add(new TextBlock { Text = L.T("流程把几个工具连起来依次处理每个文件，会出现在对应文件的工具菜单里。每一步使用在工具窗口里“保存为预设”的设置。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         stack.Children.Add(new TextBlock { Text = L.T("已有的流程"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
         stack.Children.Add(saved);
@@ -67,7 +66,7 @@ internal sealed class FlowWindow : Window
             Commit();
         };
         stack.Children.Add(save);
-        Content = stack;
+        Content = UiTheme.Frame(this, stack, "ZestDrop  /  " + L.T("流程"));
         kind.SelectedIndex = 0;
         Commit(notify: false);
     }

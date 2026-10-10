@@ -125,7 +125,7 @@ internal sealed class ToolWindow : Window
         MinWidth = 850;
         MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = new SolidColorBrush(Color.FromRgb(248, 249, 251));
+        Background = UiTheme.WindowBack;
         FontFamily = UiTheme.Font;
         FontSize = 13;
         previewDelay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(550) };
@@ -161,7 +161,7 @@ internal sealed class ToolWindow : Window
         framePicker.SelectionChanged += async (_, _) => { if (loaded && framePicker.SelectedItem is ComboBoxItem item) { imageFrame = (int)item.Tag; regions.Clear(); regionList.Items.Clear(); await Initialize(); if (LivePreview) SchedulePreview(); } };
         // A whole PDF page needs more room to mark small text accurately.
         previewHost.Height = operation.Id == "redactPDF" ? 520 : 300;
-        previewHost.Background = new SolidColorBrush(Color.FromRgb(244, 245, 247));
+        previewHost.Background = UiTheme.PreviewBack;
         if (Rotating)
         {
             rotateStage.Children.Add(rotatePlate);
@@ -303,7 +303,7 @@ internal sealed class ToolWindow : Window
         }));
         left.Children.Add(new ScrollViewer { Content = details, MaxHeight = 130, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         details.TextWrapping = TextWrapping.Wrap;
-        details.Foreground = Brushes.DimGray;
+        details.Foreground = UiTheme.Muted;
         details.Margin = new Thickness(0, 8, 0, 8);
         if (operation.Ordered || operation.Id == "organizePDF")
         {
@@ -734,7 +734,7 @@ internal sealed class ToolWindow : Window
         turn.Children.Add(new ScaleTransform(zoom, zoom));
         foreach (FrameworkElement element in new FrameworkElement[] { image, player })
         { element.RenderTransformOrigin = new Point(.5, .5); element.RenderTransform = turn; }
-        Color fill = Color.FromRgb(228, 231, 236);   // empty corners of a picture without a fill colour: transparent in the file
+        Color fill = UiTheme.LineColor;   // empty corners of a picture without a fill colour: transparent in the file
         if (Path.GetExtension(paths[0]).ToLowerInvariant() is ".jpg" or ".jpeg" or ".bmp") fill = Colors.White;
         try { if (!string.IsNullOrWhiteSpace(Get("background")) && ColorConverter.ConvertFromString(Get("background").Trim()) is Color chosen) fill = chosen; }
         catch (FormatException) { }

@@ -31,8 +31,8 @@ internal sealed class JobCard : Border
         firstName = Path.GetFileName(job.Paths[0]);
         count = job.Paths.Length;
         (stage, file) = Labels();
-        Background = Brushes.White;
-        BorderBrush = new SolidColorBrush(Color.FromRgb(230, 232, 235));
+        Background = UiTheme.Surface;
+        BorderBrush = UiTheme.Line;
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(12);
         Padding = new Thickness(20, 16, 20, 14);

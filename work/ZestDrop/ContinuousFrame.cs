@@ -11,8 +11,9 @@ internal sealed class ContinuousFrame : Decorator
     public static readonly DependencyProperty CornerRadiusProperty = DependencyProperty.Register(nameof(CornerRadius), typeof(double), typeof(ContinuousFrame),
         new FrameworkPropertyMetadata(20d, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsArrange));
     public double CornerRadius { get => (double)GetValue(CornerRadiusProperty); set => SetValue(CornerRadiusProperty, value); }
-    private static readonly Brush Face = new SolidColorBrush(Color.FromRgb(248, 249, 250));
-    private static readonly Pen Edge = new(new SolidColorBrush(Color.FromRgb(230, 233, 238)), 1);
+    // The window's own colours, taken when it opens.
+    private readonly Brush face = UiTheme.WindowBack;
+    private readonly Pen edge = new(UiTheme.Line, 1);
 
     internal static Geometry Outline(Rect bounds, double radius)
     {
@@ -58,6 +59,6 @@ internal sealed class ContinuousFrame : Decorator
     {
         base.OnRender(dc);
         if (ActualWidth < 1 || ActualHeight < 1) return;
-        dc.DrawGeometry(Face, Edge, Outline(new Rect(.5, .5, ActualWidth - 1, ActualHeight - 1), CornerRadius));
+        dc.DrawGeometry(face, edge, Outline(new Rect(.5, .5, ActualWidth - 1, ActualHeight - 1), CornerRadius));
     }
 }

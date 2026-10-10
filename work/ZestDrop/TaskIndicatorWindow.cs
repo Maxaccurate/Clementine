@@ -39,6 +39,23 @@ internal sealed class TaskIndicatorWindow : Window
     public string HeaderText => headerSummary;
     public bool ShouldShow { get; private set; }
 
+    private static readonly string ButtonStyle = """
+        <Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="Button">
+          <Setter Property="Background" Value="{Surface}"/><Setter Property="Foreground" Value="{Ink}"/>
+          <Setter Property="BorderBrush" Value="{Line}"/><Setter Property="BorderThickness" Value="1"/>
+          <Setter Property="Padding" Value="12,4"/><Setter Property="MinHeight" Value="28"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Hand"/>
+          <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Border x:Name="surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="surface" Property="BorderBrush" Value="{StrongLine}"/><Setter TargetName="surface" Property="Background" Value="{Hover}"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="surface" Property="Opacity" Value="0.45"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        """;
+
     public TaskIndicatorWindow(bool headless = false)
     {
         this.headless = headless;
@@ -55,22 +72,7 @@ internal sealed class TaskIndicatorWindow : Window
         Topmost = true;
         FontFamily = UiTheme.Font;
         FontSize = 13;
-        Resources.Add(typeof(Button), XamlReader.Parse("""
-        <Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="Button">
-          <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="#24272B"/>
-          <Setter Property="BorderBrush" Value="#E0E2E5"/><Setter Property="BorderThickness" Value="1"/>
-          <Setter Property="Padding" Value="12,4"/><Setter Property="MinHeight" Value="28"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Hand"/>
-          <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-            <Border x:Name="surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="surface" Property="BorderBrush" Value="#A9AFB8"/><Setter TargetName="surface" Property="Background" Value="#F6F7F8"/></Trigger>
-              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="surface" Property="Opacity" Value="0.45"/></Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate></Setter.Value></Setter>
-        </Style>
-        """));
+
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
         toggleButton = HeaderButton(L.T("收起"), L.T("把卡片叠成一摞，只显示最新的任务"), () => SetExpanded(!expanded), actions);
@@ -82,20 +84,31 @@ internal sealed class TaskIndicatorWindow : Window
         bar.Children.Add(headerParts);
         header = new Border
         {
-            Child = bar, Background = Brushes.White, CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 6, 8, 6), Margin = new Thickness(10, 10, 10, 5),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(230, 232, 235)), BorderThickness = new Thickness(1),
+            Child = bar, CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 6, 8, 6), Margin = new Thickness(10, 10, 10, 5), BorderThickness = new Thickness(1),
             Effect = new DropShadowEffect { BlurRadius = 12, ShadowDepth = 1, Opacity = .1 }
         };
         // Thin edges under the top card when the stack is collapsed, so it reads as a pile.
         for (int i = 0; i < 2; i++)
-            pile.Children.Add(new Border { Height = 8, Margin = new Thickness(22 + i * 12, i == 0 ? -5 : -1, 22 + i * 12, 0), Background = new SolidColorBrush(i == 0 ? Color.FromRgb(250, 250, 251) : Color.FromRgb(244, 245, 247)), CornerRadius = new CornerRadius(0, 0, 9, 9), BorderBrush = new SolidColorBrush(Color.FromRgb(214, 218, 223)), BorderThickness = new Thickness(1, 0, 1, 1) });
+            pile.Children.Add(new Border { Height = 8, Margin = new Thickness(22 + i * 12, i == 0 ? -5 : -1, 22 + i * 12, 0), CornerRadius = new CornerRadius(0, 0, 9, 9), BorderThickness = new Thickness(1, 0, 1, 1) });
         scroller = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         var root = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
         root.Children.Add(header);
         root.Children.Add(scroller);
         Content = root;
         SizeChanged += (_, _) => Place();
+        ApplyTheme();
         Refresh();
+    }
+
+    // Takes the current light or dark colours; called when the theme changes. Cards keep the colours they started with.
+    public void ApplyTheme()
+    {
+        Resources[typeof(Button)] = XamlReader.Parse(UiTheme.Fill(ButtonStyle));
+        Foreground = UiTheme.Ink;
+        header.Background = UiTheme.Surface;
+        header.BorderBrush = UiTheme.Line;
+        foreach (var edge in pile.Children.OfType<Border>())
+        { edge.Background = UiTheme.Surface; edge.BorderBrush = UiTheme.Line; }
     }
 
     private static Button HeaderButton(string text, string tip, System.Action click, Panel parent)

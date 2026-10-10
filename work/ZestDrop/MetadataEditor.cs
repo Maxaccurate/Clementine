@@ -23,6 +23,8 @@ internal sealed class MetadataEditor : DataGrid
     private readonly List<(string Scope, string Key)> original = [];
     public MetadataEditor()
     {
+        // A subclass does not pick up the window's DataGrid style by itself.
+        SetResourceReference(StyleProperty, typeof(DataGrid));
         AutoGenerateColumns = false;
         CanUserAddRows = true;
         CanUserDeleteRows = true;

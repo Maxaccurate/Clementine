@@ -29,10 +29,21 @@ internal sealed class DropWheel : Window
     private readonly TextBlock count = new(), hint = new();
     private readonly Ring first = new(), second = new();
     private readonly Border center;
-    private static readonly Brush RestingFace = Solid("#F1F3F2"), SelectedFace = Solid("#FF6208"), OpenFace = Solid("#FFE2CF");
-    private static readonly Brush RestingSide = Solid("#DDE2DE"), SelectedSide = Solid("#D94D04"), OpenSide = Solid("#F0C3A5");
-    private static readonly Brush RestingOutline = Solid("#CFD5D1"), OpenOutline = Solid("#F2B791");
-    private static readonly Brush OuterFace = Solid("#F7F8F7");
+    // The wheel's colours in the light and the dark theme; it takes the current theme each time it opens.
+    private sealed record Look(Brush RestingFace, Brush SelectedFace, Brush OpenFace, Brush RestingSide, Brush SelectedSide, Brush OpenSide, Brush RestingOutline, Brush OpenOutline, Brush OuterFace, Brush Disk, Brush Hub, Brush HubEdge);
+    private static readonly Look LightLook = new(Solid("#F1F3F2"), Solid("#FF6208"), Solid("#FFE2CF"), Solid("#DDE2DE"), Solid("#D94D04"), Solid("#F0C3A5"), Solid("#CFD5D1"), Solid("#F2B791"), Solid("#F7F8F7"), Solid("#EAEEEB"), Solid("#FFFFFF"), Solid("#F8FAF8"));
+    private static readonly Look DarkLook = new(Solid("#30353A"), Solid("#FF6208"), Solid("#5C3723"), Solid("#1C2023"), Solid("#D94D04"), Solid("#3D2416"), Solid("#42484E"), Solid("#8C512E"), Solid("#373C41"), Solid("#24282B"), Solid("#2B2F34"), Solid("#3C4147"));
+    private static Look Shade => UiTheme.Dark ? DarkLook : LightLook;
+    private static Brush RestingFace => Shade.RestingFace;
+    private static Brush SelectedFace => Shade.SelectedFace;
+    private static Brush OpenFace => Shade.OpenFace;
+    private static Brush RestingSide => Shade.RestingSide;
+    private static Brush SelectedSide => Shade.SelectedSide;
+    private static Brush OpenSide => Shade.OpenSide;
+    private static Brush RestingOutline => Shade.RestingOutline;
+    private static Brush OpenOutline => Shade.OpenOutline;
+    private static Brush OuterFace => Shade.OuterFace;
+    private readonly Ellipse disk, hubSide;
     private List<Operation> operations = [];
     private List<ToolGroup>? groups;
     private int openGroup = -1;
@@ -61,17 +72,17 @@ internal sealed class DropWheel : Window
         Topmost = true;
         AllowDrop = true;
         FontFamily = UiTheme.Font;
-        var disk = new Ellipse { Width = 360, Height = 360, Fill = Solid("#EAEEEB"), IsHitTestVisible = false,
+        disk = new Ellipse { Width = 360, Height = 360, Fill = Shade.Disk, IsHitTestVisible = false,
             Effect = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 5, Opacity = .13, Color = Color.FromRgb(42, 50, 45) } };
         Canvas.SetLeft(disk, 10);
         Canvas.SetTop(disk, 10);
         canvas.Children.Add(disk);
-        var hubSide = new Ellipse { Width = 112, Height = 112, Fill = RestingSide, IsHitTestVisible = false,
+        hubSide = new Ellipse { Width = 112, Height = 112, Fill = RestingSide, IsHitTestVisible = false,
             Effect = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 2, Opacity = .08, Color = Color.FromRgb(42, 50, 45) } };
         Canvas.SetLeft(hubSide, Center - 56); Canvas.SetTop(hubSide, Center - 56 + 4);
         Canvas.SetZIndex(hubSide, 9); canvas.Children.Add(hubSide);
-        center = new Border { Width = 112, Height = 112, CornerRadius = new CornerRadius(56), Background = Brushes.White,
-            BorderBrush = Solid("#F8FAF8"), BorderThickness = new Thickness(1) };
+        center = new Border { Width = 112, Height = 112, CornerRadius = new CornerRadius(56), Background = Shade.Hub,
+            BorderBrush = Shade.HubEdge, BorderThickness = new Thickness(1) };
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         count.Text = L.T("拖入文件");
         count.TextAlignment = TextAlignment.Center;
@@ -99,8 +110,21 @@ internal sealed class DropWheel : Window
         PreviewDrop += OnDrop;
     }
 
+    // Follows a theme change made since the wheel was last shown.
+    private void Recolor()
+    {
+        UiTheme.Refresh();
+        disk.Fill = Shade.Disk;
+        hubSide.Fill = Shade.RestingSide;
+        center.Background = Shade.Hub;
+        center.BorderBrush = Shade.HubEdge;
+        count.Foreground = UiTheme.Ink;
+        hint.Foreground = UiTheme.Muted;
+    }
+
     public void OpenAt(Native.POINT point, bool tools)
     {
+        Recolor();
         Instance++;
         entered = false;
         eligible = allowedCopy = false;
@@ -154,6 +178,7 @@ internal sealed class DropWheel : Window
     // For screenshots: show the wheel as if these files were being dragged over it, with one option lit.
     public void Preview(string[] files, bool toolsMode, string highlightId)
     {
+        Recolor();
         tools = toolsMode;
         paths = files;
         entered = allowedCopy = true;

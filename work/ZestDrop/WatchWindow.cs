@@ -25,9 +25,8 @@ internal sealed class WatchWindow : Window
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
-        FontFamily = UiTheme.Font;
-        Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 249, 251));
-        var stack = new StackPanel { Margin = new Thickness(20) };
+        UiTheme.Apply(this);
+        var stack = new StackPanel { Margin = new Thickness(28, 4, 28, 24) };
         stack.Children.Add(new TextBlock { Text = L.F("放进这些文件夹的新文件会自动处理，结果保存在其中的“{0}”文件夹里。", WatchFolders.OutputName), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         stack.Children.Add(list);
         var remove = new Button { Content = L.T("移除选中的文件夹"), Padding = new Thickness(12, 7, 12, 7), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 16) };
@@ -56,7 +55,7 @@ internal sealed class WatchWindow : Window
             Commit();
         };
         stack.Children.Add(add);
-        Content = stack;
+        Content = UiTheme.Frame(this, stack, "ZestDrop  /  " + L.T("监视文件夹"));
         kind.SelectedIndex = 0;
         Refresh();
     }

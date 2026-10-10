@@ -84,7 +84,7 @@ internal sealed class WelcomeWindow : Window
         foreach (var (code, name) in new[] { ("en", "English"), ("zh", "简体中文") })
         {
             bool current = L.Language == code;
-            var button = new Button { Content = name, Margin = new Thickness(0, 0, 8, 0), FontWeight = current ? FontWeights.SemiBold : FontWeights.Normal, BorderBrush = current ? UiTheme.Accent : new SolidColorBrush(Color.FromRgb(224, 226, 229)) };
+            var button = new Button { Content = name, Margin = new Thickness(0, 0, 8, 0), FontWeight = current ? FontWeights.SemiBold : FontWeights.Normal, BorderBrush = current ? UiTheme.Accent : UiTheme.Line };
             button.Click += (_, _) => L.Language = code;
             languages.Children.Add(button);
         }
@@ -132,7 +132,7 @@ internal sealed class WelcomeWindow : Window
         var button = new Button { Content = row, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(12, 10, 12, 10) };
         if (chosen)
         {
-            button.Background = new SolidColorBrush(Color.FromRgb(255, 244, 237));
+            button.Background = UiTheme.Tint;
             button.BorderBrush = UiTheme.Accent;
         }
         button.Click += (_, _) => { Settings.Set(Catalog.LayoutKey, value); Rebuild(); };
@@ -167,7 +167,7 @@ internal sealed class WelcomeWindow : Window
             canvas.Children.Add(new System.Windows.Shapes.Path
             {
                 Data = new PathGeometry([figure]),
-                Fill = i == highlighted ? UiTheme.Accent : new SolidColorBrush(Color.FromRgb(222, 226, 222)),
+                Fill = i == highlighted ? UiTheme.Accent : UiTheme.Line,
             });
         }
     }
@@ -177,7 +177,7 @@ internal sealed class WelcomeWindow : Window
         var row = new Grid { Margin = new Thickness(0, 0, 0, 14) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
         row.ColumnDefinitions.Add(new ColumnDefinition());
-        var badge = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Background = new SolidColorBrush(Color.FromRgb(255, 240, 230)), VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left };
+        var badge = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Background = UiTheme.Tint, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left };
         badge.Child = new TextBlock { Text = number.ToString(), FontWeight = FontWeights.Bold, Foreground = UiTheme.Accent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(badge);
         var words = new StackPanel();
