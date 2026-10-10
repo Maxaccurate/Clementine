@@ -55,6 +55,10 @@ Supported categories include images, video, audio, documents, and archives. Tool
 
 When a single picture or video has ten or more tools, related tools share one wheel entry and one window: for example **Crop & rotate**, **Size & compress** or **Sound & subtitles**. Each tool in the window is a tab. Click **Apply this step** to apply one change, then continue with the next one on the result; **Undo last step** takes the newest change back, and **Save new file** writes the result once. If you prefer, the older two-wheel layout (pick a category first, then the tool on a second wheel) can be chosen on the welcome screen or from the tray menu (**Wheel with many tools**).
 
+**Remove location** strips only where a photo or video was taken (GPS in EXIF and XMP, video location tags) and keeps everything else; JPEGs are not re-encoded. **Redact PDF** blacks out areas you mark on a page and any text you type, and removes the content underneath from the file rather than just covering it.
+
+**Customize wheel…** in the tray menu arranges the options for each kind of file; the first sits at the top of the wheel, and the option you used last moves to the top with a ↻ mark (this can be switched off). **Appearance** in the tray menu chooses Match Windows, Light or Dark.
+
 Every audio and video tool window includes playback controls, a seek bar, time display, volume, and mute. Original files can be played in full. Supported tools also offer processed-effect previews for the current segment; preview length does not limit exported output.
 
 The player uses compact dark controls and a custom timeline. Audio and video trimming expose draggable start/end handles and highlight the selected range; moving these handles updates the time fields, and editing the fields updates the timeline.

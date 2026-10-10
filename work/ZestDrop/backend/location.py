@@ -4,7 +4,8 @@ from common import *
 # Removes only where a photo or video was taken; everything else (camera, date, orientation, quality) stays.
 GPS=0x8825
 XMP_HEADER=b'http://ns.adobe.com/xap/1.0/\x00'
-NO_LOCATION='文件里没有位置信息，无需移除'
+
+def no_location(): return ValueError(T('文件里没有位置信息，无需移除'))
 
 def remove(path,params):
     kind=category(path)
@@ -21,7 +22,7 @@ def image(path):
         with output_file(path,'removeLocation',suffix) as state: state['temp'].write_bytes(data)
         return state['output']
     picture=open_image(path); exif=picture.getexif()
-    if GPS not in exif: raise ValueError(T(NO_LOCATION))
+    if GPS not in exif: raise no_location()
     del exif[GPS]
     fmt={'.jpeg':'jpg','.tif':'tiff','.heif':'heic'}.get(suffix,suffix.lstrip('.'))
     with output_file(path,'removeLocation',suffix) as state: save_image(picture,state['temp'],fmt,95,exif)
@@ -49,7 +50,7 @@ def jpeg_without_location(data):
             # XMP can repeat the coordinates; drop that block.
             found=True; segment=b''
         out+=segment; i+=2+length
-    if not found: raise ValueError(T(NO_LOCATION))
+    if not found: raise no_location()
     return bytes(out+data[i:])
 
 def location_tags(tags):
@@ -60,7 +61,7 @@ def video(path):
     for key in location_tags(info['format'].get('tags',{})): args+=['-metadata',f'{key}=']
     for stream in info['streams']:
         for key in location_tags(stream.get('tags',{})): args+=[f'-metadata:s:{stream["index"]}',f'{key}=']
-    if not args: raise ValueError(T(NO_LOCATION))
+    if not args: raise no_location()
     # Copy picture and sound as they are. Extra data tracks (where phones may repeat the location) are left out.
     with output_file(path,'removeLocation',suffix) as state:
         ffmpeg(['-i',path,'-map','0:v','-map','0:a?','-map','0:s?','-c','copy','-map_metadata','0',*args,state['temp']])
