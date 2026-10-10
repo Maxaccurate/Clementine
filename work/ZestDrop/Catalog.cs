@@ -17,9 +17,9 @@ internal static class Catalog
     private static readonly Dictionary<string, (string Label, string[] Ids)[]> Categories = new()
     {
         ["image"] = [("尺寸与方向", ["cropImage", "rotateImage", "resizeImage"]), ("外观与标记", ["editImage", "frameImage", "watermark", "redactImage"]),
-            ("输出与整理", ["compress", "removeMetadata", "ocrImage", "makeIcon", "createPDF", "createCollage", "createAnimation", "packArchive"])],
+            ("输出与整理", ["compress", "removeMetadata", "removeLocation", "ocrImage", "makeIcon", "createPDF", "createCollage", "createAnimation", "packArchive"])],
         ["video"] = [("剪辑", ["trimVideo", "splitVideo", "joinVideos", "changeVideoSpeed", "videoSnapshots", "videoEffects"]), ("画面", ["cropVideo", "rotateVideo", "videoSettings", "watermark", "redactVideo"]),
-            ("声音与字幕", ["muteVideo", "subtitlesAudio"]), ("输出与整理", ["compress", "removeMetadata", "videoToGif", "packArchive"])],
+            ("声音与字幕", ["muteVideo", "subtitlesAudio"]), ("输出与整理", ["compress", "removeMetadata", "removeLocation", "videoToGif", "packArchive"])],
         ["audio"] = [("剪辑", ["trimAudio", "redactAudio", "joinAudio"]), ("声音", ["normalizeAudio", "audioChannels", "audioEffects"]),
             ("输出与整理", ["compress", "removeMetadata", "audioToVideo", "ringtone", "packArchive"])],
         ["document"] = [("页面", ["splitPDF", "mergePDF", "organizePDF", "extractPdfImages", "pdfNumbers"]), ("安全与识别", ["pdfPassword", "ocrPDF", "watermark", "removeMetadata"]),
@@ -41,6 +41,7 @@ internal static class Catalog
     };
 
     // Replaces each tool that belongs to a combined entry by that entry (in the place of its first tool).
+    // Several files can share a combined window as well; each of its tools then saves on its own.
     private static List<string> Merge(string kind, List<string> ids)
     {
         if (TwoWheels || ids.Count < 10 || !Merged.TryGetValue(kind, out var plan))
@@ -119,9 +120,8 @@ internal static class Catalog
             var ids = Tools(paths[0], paths.Length).ToList();
             foreach (string path in paths.Skip(1))
                 ids = ids.Intersect(Tools(path, paths.Length)).ToList();
-            if (paths.Length == 1)
-                ids = Merge(Category(paths[0]), ids);
-            var chosen = ids.Select(id => Definition(id, Category(paths[0]))).ToList();
+            ids = Merge(Category(paths[0]), ids);
+            var chosen = ids.Select(id => Definition(id, Category(paths[0]))).Select(o => paths.Length > 1 && o.Chain ? o with { Chain = false } : o).ToList();
             var flows = Flows.For(paths);
             // Flows follow the tools; if they would make the wheel too crowded they share one entry.
             if (!TwoWheels && chosen.Count + flows.Count >= 10 && flows.Count > 1)
@@ -148,12 +148,12 @@ internal static class Catalog
                 return count > 1 ? ["createPDF", "createCollage", "createAnimation", "packArchive"] : ["resizeImage", "makeIcon"];
             if (ext == "bmp")
                 return count > 1 ? ["compress", "rotateImage", "resizeImage", "watermark", "createPDF", "createCollage", "createAnimation", "packArchive"] : ["compress", "editImage", "frameImage", "cropImage", "rotateImage", "resizeImage", "watermark", "makeIcon", "ocrImage", "redactImage"];
-            return count > 1 ? ["compress", "removeMetadata", "rotateImage", "resizeImage", "watermark", "createPDF", "createCollage", "createAnimation", "packArchive"] : ["compress", "removeMetadata", "editImage", "frameImage", "cropImage", "rotateImage", "resizeImage", "watermark", "makeIcon", "ocrImage", "redactImage"];
+            return count > 1 ? ["compress", "removeMetadata", "removeLocation", "rotateImage", "resizeImage", "watermark", "createPDF", "createCollage", "createAnimation", "packArchive"] : ["compress", "removeMetadata", "removeLocation", "editImage", "frameImage", "cropImage", "rotateImage", "resizeImage", "watermark", "makeIcon", "ocrImage", "redactImage"];
         }
         if (kind == "audio")
             return count > 1 ? ["compress", "normalizeAudio", "audioEffects", "joinAudio", "packArchive"] : ["compress", "removeMetadata", "normalizeAudio", "audioToVideo", "trimAudio", "audioChannels", "audioEffects", "ringtone", "redactAudio"];
         if (kind == "video")
-            return ext == "gif" ? ["removeMetadata"] : count > 1 ? ["compress", "muteVideo", "rotateVideo", "videoSettings", "watermark", "joinVideos", "packArchive"] : ["compress", "removeMetadata", "muteVideo", "trimVideo", "cropVideo", "rotateVideo", "changeVideoSpeed", "videoSnapshots", "splitVideo", "videoSettings", "videoEffects", "videoToGif", "watermark", "subtitlesAudio", "redactVideo"];
+            return ext == "gif" ? ["removeMetadata"] : count > 1 ? ["compress", "removeLocation", "muteVideo", "rotateVideo", "videoSettings", "watermark", "joinVideos", "packArchive"] : ["compress", "removeMetadata", "removeLocation", "muteVideo", "trimVideo", "cropVideo", "rotateVideo", "changeVideoSpeed", "videoSnapshots", "splitVideo", "videoSettings", "videoEffects", "videoToGif", "watermark", "subtitlesAudio", "redactVideo"];
         if (kind == "office")
         {
             string family = OfficeSlides.Contains(ext) ? "PowerPoint" : OfficeWords.Contains(ext) ? "Word" : "Excel";
@@ -207,6 +207,7 @@ internal static class Catalog
         "createPDF" => new(id, L.T("创建 PDF"), true, [], true),
         "createCollage" => new(id, L.T("拼图"), true, [C("layout", L.T("布局"), "grid", "grid", "row", "column", "featured"), N("canvasWidth", L.T("画布宽度"), "1600"), N("canvasHeight", L.T("画布高度"), "1200"), N("columns", L.T("网格列数（0 自动）"), "0"), N("gap", L.T("间距"), "16"), N("radius", L.T("圆角"), "0"), T("background", L.T("背景色"), "#ffffff")], true),
         "muteVideo" => new(id, L.T("移除音频"), true),
+        "removeLocation" => new(id, L.T("移除位置信息"), true),
         "trimVideo" => new(id, L.T("裁剪时段"), true, Times),
         "cropVideo" => new(id, L.T("裁剪画面"), true, [.. Crop, .. Ratio]),
         "changeVideoSpeed" => new(id, L.T("调整速度"), true, [N("speed", L.T("速度（0.125–8）"), "2")]),

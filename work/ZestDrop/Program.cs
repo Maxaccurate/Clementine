@@ -666,7 +666,8 @@ internal sealed class Resident : IDisposable
             catch (ArgumentException ex) { Notify(L.T("流程"), ex.Message); }
             return;
         }
-        if (operation.Tool && ((operation.Fields?.Length ?? 0) > 0 || operation.Ordered || Catalog.Category(paths[0]) is "audio" or "video"))
+        // Tools with settings, an order to choose, or a player open a window; "remove location" just runs.
+        if (operation.Tool && operation.Id != "removeLocation" && ((operation.Fields?.Length ?? 0) > 0 || operation.Ordered || Catalog.Category(paths[0]) is "audio" or "video"))
         {
             var tool = new ToolWindow(paths, operation, EnqueueTool);
             tool.Show();

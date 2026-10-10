@@ -41,7 +41,7 @@ internal sealed class ComboWindow : Window
         kind = Catalog.Category(paths[0]);
         working = paths[0];
         current = combo.Parts![0];
-        Title = combo.Label + " · " + Path.GetFileName(paths[0]);
+        Title = combo.Label + " · " + Selection;
         Width = 1040;
         Height = 860;
         MinWidth = 850;
@@ -69,7 +69,7 @@ internal sealed class ComboWindow : Window
         var root = new DockPanel { Margin = new Thickness(24, 8, 24, 10) };
         var header = new StackPanel();
         header.Children.Add(new TextBlock { Text = combo.Label, FontSize = 26, FontWeight = FontWeights.SemiBold });
-        header.Children.Add(new TextBlock { Text = Path.GetFileName(paths[0]), Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 14) });
+        header.Children.Add(new TextBlock { Text = Selection, Foreground = UiTheme.Muted, Margin = new Thickness(0, 6, 0, 14) });
         foreach (string part in combo.Parts!)
         {
             string id = part;
@@ -112,6 +112,8 @@ internal sealed class ComboWindow : Window
         }
     }
 
+    private string Selection => paths.Length == 1 ? Path.GetFileName(paths[0]) : L.F("已选 {0} 个文件", paths.Length);
+
     private static Button MakeButton(string text, Func<Task> click)
     {
         var button = new Button { Content = text, Padding = new Thickness(14, 8, 14, 8), Margin = new Thickness(6, 0, 0, 0) };
@@ -125,7 +127,7 @@ internal sealed class ComboWindow : Window
         if (panel?.Busy == true)
             return;
         panel?.Release();
-        panel = new ToolWindow([working], Catalog.Definition(part, kind), combo.Chain ? ApplyStep : submit, this);
+        panel = new ToolWindow(combo.Chain ? [working] : paths, Catalog.Definition(part, kind), combo.Chain ? ApplyStep : submit, this);
         if (combo.Chain)
         {
             panel.SaveLabel = L.T("应用这一步");

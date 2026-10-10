@@ -17,6 +17,9 @@ def one(path,action,params):
         return archives.convert([path],fmt,params)
     if action=='flow': return run_flow(path,params)
     if action=='extractArchive': return archives.extract(path,params)
+    if action=='removeLocation':
+        import location
+        return location.remove(path,params)
     if action in ('ocrImage','ocrPDF'):
         import ocr
         return ocr.run(path,action,params)
